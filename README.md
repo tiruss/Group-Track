@@ -28,7 +28,7 @@ $ pip install boxmot
 
 
 
-## Usage
+## Basic Usage
   
 ```bash
 $ python track.py --source ${source} --yolo-model yolov8-group.pt
