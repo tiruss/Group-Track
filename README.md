@@ -10,13 +10,13 @@
 ## 설치
 
 ```bash
-git clone https://github.com/tiruss/Group-Track.git
-cd Group-Track
+$ git clone https://github.com/tiruss/Group-Track.git
+$ cd Group-Track
 
-conda create -n group-track python=3.10
-conda activate group-track
+$ conda create -n group-track python=3.10
+$ conda activate group-track
 
-pip install boxmot
+$ pip install boxmot
 ```
 
 
