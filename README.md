@@ -18,6 +18,7 @@ $ cd Group-Track
 $ conda create -n group-track python=3.10
 $ conda activate group-track
 
+$ pip install psutil
 $ pip install boxmot
 ```
 
