@@ -85,15 +85,18 @@ def run(args):
 
     yolo.add_callback('on_predict_start', partial(on_predict_start, persist=True))
 
-    if 'yolov8' not in str(args.yolo_model):
-        # replace yolov8 model
-        m = get_yolo_inferer(args.yolo_model)
-        model = m(
-            model=args.yolo_model,
-            device=yolo.predictor.device,
-            args=yolo.predictor.args
-        )
-        yolo.predictor.model = model
+    """
+    Yolov8 모델을 사용하지 않는 경우
+    """
+    # if 'yolov8' not in str(args.yolo_model):
+    #     # replace yolov8 model
+    #     m = get_yolo_inferer(args.yolo_model)
+    #     model = m(
+    #         model=args.yolo_model,
+    #         device=yolo.predictor.device,
+    #         args=yolo.predictor.args
+    #     )
+    #     yolo.predictor.model = model
 
     # store custom args in predictor
     yolo.predictor.custom_args = args
