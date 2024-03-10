@@ -9,7 +9,7 @@
 
 ## 설치
 
-```
+```bash
 git clone https://github.com/tiruss/Group-Track.git
 cd Group-Track
 
