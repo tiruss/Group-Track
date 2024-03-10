@@ -130,7 +130,7 @@ def parse_opt():
                         help='save tracking results in a single txt file')
     parser.add_argument('--line-width', default=None, type=int,
                         help='The line width of the bounding boxes. If None, it is scaled to the image size.')
-    parser.add_argument('--per-class', default=False, action='store_true',
+    parser.add_argument('--per-class', default=True, action='store_true',
                         help='not mix up classes when tracking')
     parser.add_argument('--verbose', default=True, action='store_true',
                         help='print results per frame')
