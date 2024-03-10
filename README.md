@@ -1,128 +1,37 @@
-# BoxMOT: pluggable SOTA tracking modules for segmentation, object detection and pose estimation models
+#  Group Detection and Tracking
 
-<div align="center">
-  <p>
-  <img src="assets/images/track_all_seg_1280_025conf.gif" width="400"/>
-  </p>
-  <br>
-  <div>
-  <a href="https://github.com/mikel-brostrom/yolov8_tracking/actions/workflows/ci.yml"><img src="https://github.com/mikel-brostrom/yolov8_tracking/actions/workflows/ci.yml/badge.svg" alt="CI CPU testing"></a>
-  <a href="https://pepy.tech/project/boxmot"><img src="https://static.pepy.tech/badge/boxmot"></a>
-  <br>
-  <a href="https://colab.research.google.com/drive/18nIqkBr68TkK8dHdarxTco6svHUJGggY?usp=sharing"><img src="https://colab.research.google.com/assets/colab-badge.svg" alt="Open In Colab"></a>
-<a href="https://doi.org/10.5281/zenodo.8132989"><img src="https://zenodo.org/badge/DOI/10.5281/zenodo.8132989.svg" alt="DOI"></a>
+## 소개
 
-  </div>
-</div>
+이 프로젝트는 그룹 클래스 검출에 특화된 YOLOv8 네트워크를 학습하고 이를 이용하여 그룹 검출과 추적을 수행하는 프로젝트입니다.
 
-## Introduction
-
-This repo contains a collections of pluggable state-of-the-art multi-object trackers for segmentation, object detection and pose estimation models. For the methods using appearance description, both heavy ([CLIPReID](https://arxiv.org/pdf/2211.13977.pdf)) and lightweight state-of-the-art ReID models ([LightMBN](https://arxiv.org/pdf/2101.10774.pdf), [OSNet](https://arxiv.org/pdf/1905.00953.pdf) and more) are available for automatic download. We provide examples on how to use this package together with popular object detection models such as: [Yolov8](https://github.com/ultralytics), [Yolo-NAS](https://github.com/Deci-AI/super-gradients) and [YOLOX](https://github.com/Megvii-BaseDetection/YOLOX).
-
-<div align="center">
-
-|  Tracker | HOTA↑ | MOTA↑ | IDF1↑ |
-| -------- | ----- | ----- | ----- |
-| [BoTSORT](https://arxiv.org/pdf/2206.14651.pdf)    | 77.8 | 78.9 | 88.9 |
-| [DeepOCSORT](https://arxiv.org/pdf/2302.11813.pdf) | 77.4 | 78.4 | 89.0 |
-| [OCSORT](https://arxiv.org/pdf/2203.14360.pdf)     | 77.4 | 78.4 | 89.0 |
-| [HybridSORT](https://arxiv.org/pdf/2308.00783.pdf) | 77.3 | 77.9 | 88.8 |
-| [ByteTrack](https://arxiv.org/pdf/2110.06864.pdf)  | 75.6 | 74.6 | 86.0 |
-| [StrongSORT](https://arxiv.org/pdf/2202.13514.pdf) |      | | |
-| <img width=200/>                                   | <img width=100/> | <img width=100/> | <img width=100/> |
-
-<sub> NOTES: performed on the 10 first frames of each MOT17 sequence. The detector used is ByteTrack's YoloXm, trained on: CrowdHuman, MOT17, Cityperson and ETHZ. Each tracker is configured with its original parameters found in their respective official repository.</sub>
-
-</div>
-
-</details>
-
-<details>
-<summary>Tutorials</summary>
-  
-* [Yolov8 training (link to external repository)](https://docs.ultralytics.com/modes/train/)&nbsp;
-* [Deep appearance descriptor training (link to external repository)](https://kaiyangzhou.github.io/deep-person-reid/user_guide.html)&nbsp;
-* [ReID model export to ONNX, OpenVINO, TensorRT and TorchScript](https://github.com/mikel-brostrom/yolo_tracking/wiki/ReID-multi-framework-model-export)&nbsp;
-* [Evaluation on custom tracking dataset](https://github.com/mikel-brostrom/yolo_tracking/wiki/How-to-evaluate-on-custom-tracking-dataset)&nbsp;
-* [ReID inference acceleration with Nebullvm](https://colab.research.google.com/drive/1APUZ1ijCiQFBR9xD0gUvFUOC8yOJIvHm?usp=sharing)&nbsp;
-
-  </details>
-
-<details>
-<summary>Experiments</summary>
-
-In inverse chronological order:
-
-* [Evaluation of the params evolved for first half of MOT17 on the complete MOT17](https://github.com/mikel-brostrom/Yolov5_StrongSORT_OSNet/wiki/Evaluation-of-the-params-evolved-for-first-half-of-MOT17-on-the-complete-MOT17)
-
-* [Segmentation model vs object detetion model on MOT metrics](https://github.com/mikel-brostrom/Yolov5_StrongSORT_OSNet/wiki/Segmentation-model-vs-object-detetion-model-on-MOT-metrics)
-
-* [Effect of masking objects before feature extraction](https://github.com/mikel-brostrom/Yolov5_StrongSORT_OSNet/wiki/Masked-detection-crops-vs-regular-detection-crops-for-ReID-feature-extraction)
-
-* [conf-thres vs HOTA, MOTA and IDF1](https://github.com/mikel-brostrom/Yolov5_StrongSORT_OSNet/wiki/conf-thres-vs-MOT-metrics)
-
-* [Effect of KF updates ahead for tracks with no associations on MOT17](https://github.com/mikel-brostrom/Yolov5_StrongSORT_OSNet/wiki/Effect-of-KF-updates-ahead-for-tracks-with-no-associations,-on-MOT17)
-
-* [Effect of full images vs 1280 input to StrongSORT on MOT17](https://github.com/mikel-brostrom/Yolov5_StrongSORT_OSNet/wiki/Effect-of-passing-full-image-input-vs-1280-re-scaled-to-StrongSORT-on-MOT17)
-
-* [Effect of different OSNet architectures on MOT16](https://github.com/mikel-brostrom/Yolov5_StrongSORT_OSNet/wiki/OSNet-architecture-performances-on-MOT16)
-
-* [Yolov5 StrongSORT vs BoTSORT vs OCSORT](https://github.com/mikel-brostrom/Yolov5_StrongSORT_OSNet/wiki/StrongSORT-vs-BoTSORT-vs-OCSORT)
-    * Yolov5 [BoTSORT](https://arxiv.org/abs/2206.14651) branch: https://github.com/mikel-brostrom/Yolov5_StrongSORT_OSNet/tree/botsort
-
-* [Yolov5 StrongSORT OSNet vs other trackers MOT17](https://github.com/mikel-brostrom/Yolov5_StrongSORT_OSNet/wiki/MOT-17-evaluation-(private-detector))&nbsp;
-
-* [StrongSORT MOT16 ablation study](https://github.com/mikel-brostrom/Yolov5_StrongSORT_OSNet/wiki/Yolov5DeepSORTwithOSNet-vs-Yolov5StrongSORTwithOSNet-ablation-study-on-MOT16)&nbsp;
-
-* [Yolov5 StrongSORT OSNet vs other trackers MOT16 (deprecated)](https://github.com/mikel-brostrom/Yolov5_StrongSORT_OSNet/wiki/MOT-16-evaluation)&nbsp;
-
-  </details>
-
-#### News
-
-* Enabled trajectory plotting for all trackers besides StrongSORT by `--show-trajectories` (March 2024)
-* All trackers inherit from BaseTracker (Mars 2024)
-* Switched from setuptools to poetry for unified: dependency resolution, packaging and publishing management (March 2024)
-* ~x3 pipeline speedup by: using pregenerated detections + embeddings and jobs parallelization (March 2024)
-* Ultra fast exerimentation enabled by allowing local detections and embeddings saving. This data can then be loaded into any tracking algorithm, avoiding the overhead of repeatedly generating it (February 2024)
-* Centroid-based cost function added to OCSORT and DeepOCSORT (suitable for: small and/or high speed objects and low FPS videos) (January 2024)
-* Custom Ultralytics package updated from 8.0.124 to 8.0.224 (December 2023)
-* HybridSORT available (August 2023)
-* SOTA CLIP-ReID people and vehicle models available (August 2023)
+## 프로젝트 구조
 
 
-## Why BOXMOT?
-
-Today's multi-object tracking options are heavily dependant on the computation capabilities of the underlaying hardware. BoxMOT provides a great variety of tracking methods that meet different hardware limitations, all the way from CPU only to larger GPUs. Morover, we provide scripts for ultra fast experimentation by saving detections and embeddings, which then be loaded into any tracking algorithm. Avoiding the overhead of repeatedly generating this data.
-
-## Installation
-
-Start with [**Python>=3.8**](https://www.python.org/) environment.
-
-If you want to run the YOLOv8, YOLO-NAS or YOLOX examples:
+## 설치
 
 ```
-git clone https://github.com/mikel-brostrom/yolo_tracking.git
-cd yolo_tracking
-pip install poetry
-poetry install --with yolo  # installed boxmot + yolo dependencies
-poetry shell  # activates the newly created environment with the installed dependencies
-```
+git clone https://github.com/tiruss/Group-Track.git
+cd Group-Track
 
-but if you only want to import the tracking modules you can simply:
+conda create -n group-track python=3.10
+conda activate group-track
 
-```
 pip install boxmot
 ```
 
-## YOLOv8 | YOLO-NAS | YOLOX examples
 
+## Usage
+  
+```bash
+$ python track.py --source ${source} --yolo-model yolov8-group.pt
+```
 <details>
 <summary>Tracking</summary>
 
 <details>
 <summary>Yolo models</summary>
 
+## Detail of models
 
 
 ```bash
@@ -245,177 +154,3 @@ The set of hyperparameters leading to the best HOTA result are written to the tr
 
 </details>
 
-
-## Custom tracking examples
-
-<details>
-<summary>Detection</summary>
-
-```python
-import cv2
-import numpy as np
-from pathlib import Path
-
-from boxmot import DeepOCSORT
-
-
-tracker = DeepOCSORT(
-    model_weights=Path('osnet_x0_25_msmt17.pt'), # which ReID model to use
-    device='cuda:0',
-    fp16=False,
-)
-
-vid = cv2.VideoCapture(0)
-
-while True:
-    ret, im = vid.read()
-
-    # substitute by your object detector, output has to be N X (x, y, x, y, conf, cls)
-    dets = np.array([[144, 212, 578, 480, 0.82, 0],
-                    [425, 281, 576, 472, 0.56, 65]])
-
-    tracker.update(dets, im) # --> M X (x, y, x, y, id, conf, cls, ind)
-    tracker.plot_results(im, show_trajectories=True)
-
-    # break on pressing q or space
-    cv2.imshow('BoxMOT detection', im)     
-    key = cv2.waitKey(1) & 0xFF
-    if key == ord(' ') or key == ord('q'):
-        break
-
-vid.release()
-cv2.destroyAllWindows()
-```
-
-</details>
-
-
-<details>
-<summary>Pose & segmentation</summary>
-
-```python
-import cv2
-import numpy as np
-from pathlib import Path
-
-from boxmot import DeepOCSORT
-
-
-tracker = DeepOCSORT(
-    model_weights=Path('osnet_x0_25_msmt17.pt'), # which ReID model to use
-    device='cuda:0',
-    fp16=True,
-)
-
-vid = cv2.VideoCapture(0)
-
-while True:
-    ret, im = vid.read()
-
-    keypoints = np.random.rand(2, 17, 3)
-    mask = np.random.rand(2, 480, 640)
-    # substitute by your object detector, input to tracker has to be N X (x, y, x, y, conf, cls)
-    dets = np.array([[144, 212, 578, 480, 0.82, 0],
-                    [425, 281, 576, 472, 0.56, 65]])
-
-    tracks = tracker.update(dets, im) # --> M x (x, y, x, y, id, conf, cls, ind)
-
-    # xyxys = tracks[:, 0:4].astype('int') # float64 to int
-    # ids = tracks[:, 4].astype('int') # float64 to int
-    # confs = tracks[:, 5]
-    # clss = tracks[:, 6].astype('int') # float64 to int
-    inds = tracks[:, 7].astype('int') # float64 to int
-
-    # in case you have segmentations or poses alongside with your detections you can use
-    # the ind variable in order to identify which track is associated to each seg or pose by:
-    # masks = masks[inds]
-    # keypoints = keypoints[inds]
-    # such that you then can: zip(tracks, masks) or zip(tracks, keypoints)
-
-    # break on pressing q or space
-    cv2.imshow('BoxMOT segmentation | pose', im)     
-    key = cv2.waitKey(1) & 0xFF
-    if key == ord(' ') or key == ord('q'):
-        break
-
-vid.release()
-cv2.destroyAllWindows()
-```
-
-</details>
-
-<details>
-<summary>Tiled inference</summary>
-  
-```py
-from sahi import AutoDetectionModel
-from sahi.predict import get_sliced_prediction
-import cv2
-import numpy as np
-from pathlib import Path
-from boxmot import DeepOCSORT
-
-
-tracker = DeepOCSORT(
-    model_weights=Path('osnet_x0_25_msmt17.pt'), # which ReID model to use
-    device='cpu',
-    fp16=False,
-)
-
-detection_model = AutoDetectionModel.from_pretrained(
-    model_type='yolov8',
-    model_path='yolov8n.pt',
-    confidence_threshold=0.5,
-    device="cpu",  # or 'cuda:0'
-)
-
-vid = cv2.VideoCapture(0)
-color = (0, 0, 255)  # BGR
-thickness = 2
-fontscale = 0.5
-
-while True:
-    ret, im = vid.read()
-
-    # get sliced predictions
-    result = get_sliced_prediction(
-        im,
-        detection_model,
-        slice_height=256,
-        slice_width=256,
-        overlap_height_ratio=0.2,
-        overlap_width_ratio=0.2
-    )
-    num_predictions = len(result.object_prediction_list)
-    dets = np.zeros([num_predictions, 6], dtype=np.float32)
-    for ind, object_prediction in enumerate(result.object_prediction_list):
-        dets[ind, :4] = np.array(object_prediction.bbox.to_xyxy(), dtype=np.float32)
-        dets[ind, 4] = object_prediction.score.value
-        dets[ind, 5] = object_prediction.category.id
-
-    tracks = tracker.update(dets, im) # --> (x, y, x, y, id, conf, cls, ind)
-
-    tracker.plot_results(im, show_trajectories=True)
-
-    # break on pressing q or space
-    cv2.imshow('BoxMOT tiled inference', im)     
-    key = cv2.waitKey(1) & 0xFF
-    if key == ord(' ') or key == ord('q'):
-        break
-
-vid.release()
-cv2.destroyAllWindows()
-```
-
-</details>
-
-## Contributors
-
-<a href="https://github.com/mikel-brostrom/yolo_tracking/graphs/contributors ">
-  <img src="https://contrib.rocks/image?repo=mikel-brostrom/yolo_tracking" />
-</a>
-
-## Contact
-
-For Yolo tracking bugs and feature requests please visit [GitHub Issues](https://github.com/mikel-brostrom/yolo_tracking/issues).
-For business inquiries or professional support requests please send an email to: yolov5.deepsort.pytorch@gmail.com
