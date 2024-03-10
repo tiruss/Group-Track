@@ -19,6 +19,14 @@ $ conda activate group-track
 $ pip install boxmot
 ```
 
+### Download YOLOv8-Group weight
+
+* Download the weight file from
+[link](https://drive.google.com/file/d/1vy53-eZITa6hOrp6LQT64J29VSfiGgO-/view?usp=sharing)
+
+* 최상위 디렉토리에 `yolov8-group.pt` 파일을 저장합니다.
+
+
 
 ## Usage
   
