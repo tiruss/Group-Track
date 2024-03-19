@@ -233,6 +233,7 @@ class Results(SimpleClass):
         
         final_keys=list(count_hm.keys())
         final_values=list(count_hm.values())
+        # print('aa')
         # Plot Detect results
         
         
