@@ -61,6 +61,26 @@ class BaseTensor(SimpleClass):
     def __getitem__(self, idx):
         """Return a BaseTensor with the specified index of the data tensor."""
         return self.__class__(self.data[idx], self.orig_shape)
+class Colors:
+    # Ultralytics color palette https://ultralytics.com/
+    def __init__(self):
+        # hex = matplotlib.colors.TABLEAU_COLORS.values()
+        hexs = ('FF3838', 'FF9D97', 'FF701F', 'FFB21D', 'CFD231', '48F90A', '92CC17', '3DDB86', '1A9334', '00D4BB',
+                '2C99A8', '00C2FF', '344593', '6473FF', '0018EC', '8438FF', '520085', 'CB38FF', 'FF95C8', 'FF37C7')
+        self.palette = [self.hex2rgb(f'#{c}') for c in hexs]
+        self.n = len(self.palette)
+
+    def __call__(self, i, bgr=False):
+        c = self.palette[int(i) % self.n]
+        return (c[2], c[1], c[0]) if bgr else c
+
+    @staticmethod
+    def hex2rgb(h):  # rgb order (PIL)
+        return tuple(int(h[1 + i:1 + i + 2], 16) for i in (0, 2, 4))
+
+
+count_colors = Colors()  # create instance for 'from utils.plots import colors'
+
 
 
 class Results(SimpleClass):
@@ -178,42 +198,14 @@ class Results(SimpleClass):
         boxes=True,
         masks=True,
         probs=True,
+        count_hm = None,
+        group_list=None
+        
     ):
-        """
-        Plots the detection results on an input RGB image. Accepts a numpy array (cv2) or a PIL Image.
 
-        Args:
-            conf (bool): Whether to plot the detection confidence score.
-            line_width (float, optional): The line width of the bounding boxes. If None, it is scaled to the image size.
-            font_size (float, optional): The font size of the text. If None, it is scaled to the image size.
-            font (str): The font to use for the text.
-            pil (bool): Whether to return the image as a PIL Image.
-            img (numpy.ndarray): Plot to another image. if not, plot to original image.
-            im_gpu (torch.Tensor): Normalized image in gpu with shape (1, 3, 640, 640), for faster mask plotting.
-            kpt_radius (int, optional): Radius of the drawn keypoints. Default is 5.
-            kpt_line (bool): Whether to draw lines connecting keypoints.
-            labels (bool): Whether to plot the label of bounding boxes.
-            boxes (bool): Whether to plot the bounding boxes.
-            masks (bool): Whether to plot the masks.
-            probs (bool): Whether to plot classification probability
+        
 
-        Returns:
-            (numpy.ndarray): A numpy array of the annotated image.
-
-        Example:
-            ```python
-            from PIL import Image
-            from ultralytics import YOLO
-
-            model = YOLO('yolov8n.pt')
-            results = model('bus.jpg')  # results list
-            for r in results:
-                im_array = r.plot()  # plot a BGR numpy array of predictions
-                im = Image.fromarray(im_array[..., ::-1])  # RGB PIL image
-                im.show()  # show image
-                im.save('results.jpg')  # save image
-            ```
-        """
+        
         if img is None and isinstance(self.orig_img, torch.Tensor):
             img = (self.orig_img[0].detach().permute(1, 2, 0).contiguous() * 255).to(torch.uint8).cpu().numpy()
 
@@ -238,15 +230,43 @@ class Results(SimpleClass):
             idx = pred_boxes.cls if pred_boxes else range(len(pred_masks))
             annotator.masks(pred_masks.data, colors=[colors(x, True) for x in idx], im_gpu=im_gpu)
 
+        
+        final_keys=list(count_hm.keys())
+        final_values=list(count_hm.values())
         # Plot Detect results
+        
+        
+      
         if pred_boxes and show_boxes:
-            for d in reversed(pred_boxes):
-                c, conf, id = int(d.cls), float(d.conf) if conf else None, None if d.id is None else int(d.id.item())
-                name = ('' if id is None else f'id:{id} ') + names[c]
-                label = (f'{name} {conf:.2f}' if conf else name) if labels else None
-                annotator.box_label(d.xyxy.squeeze(), label, color=colors(c, True))
-
-        # Plot Classify results
+                for i, d in reversed(list(enumerate(final_keys))):
+                    #group detecion filterec_boxes
+                    # filtered_boxes = [box for box in pred_boxes if int(box.cls) == 1]
+                    # d[0]을 group_list의 첫 번째 리스트에서 찾기
+                    if d[1] in group_list[0] :
+                        index = group_list[0].index(d[1])  # d[0]의 인덱스를 찾음
+                        mapped_value = group_list[1][index]  # 동일 인덱스의 두 번째 리스트 값
+                        name = (f'Pid:{d[0]} ') 
+                        label = (f'{name} ' + f'Gid:{mapped_value}')
+    
+                    else:
+                        label = (f'Pid:{d[0]} '+'Gid:None') 
+                    color = count_colors(i, True)
+                    black_color = (0, 0, 0)
+                    annotator.box_label(pred_boxes[i].xyxy.squeeze(), label, color=color)
+                    
+                    # for box in filtered_boxes:
+                        
+          
+                    #     group detection 색상만 지정하여 박스를 그림
+                    #     annotator.box_label(box.xyxy.squeeze(), color=black_color)  # label 생략 또는 적절한 라벨 지정
+                                
+                    
+                    
+                                
+     
+   
+  
+        # # Plot Classify results 
         if pred_probs is not None and show_probs:
             text = ',\n'.join(f'{names[j] if names else j} {pred_probs.data[j]:.2f}' for j in pred_probs.top5)
             x = round(self.orig_shape[0] * 0.03)
