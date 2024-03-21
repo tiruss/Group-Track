@@ -102,21 +102,22 @@ def run(args):
     yolo.predictor.custom_args = args
 
     for r in results:
+        a=1
 
-        img = yolo.predictor.trackers[0].plot_results(r.orig_img, args.show_trajectories)
+        # img = yolo.predictor.trackers[0].plot_results(r.orig_img, args.show_trajectories)
 
-        if args.show is True:
-            cv2.imshow('BoxMOT', img)     
-            key = cv2.waitKey(1) & 0xFF
-            if key == ord(' ') or key == ord('q'):
-                break
+        # if args.show is True:
+        #     cv2.imshow('BoxMOT', img)     
+        #     key = cv2.waitKey(1) & 0xFF
+        #     if key == ord(' ') or key == ord('q'):
+        #         break
 
 
 def parse_opt():
     parser = argparse.ArgumentParser()
     parser.add_argument('--yolo-model', type=Path, default=WEIGHTS / 'yolov8n',
                         help='yolo model path')
-    parser.add_argument('--reid-model', type=Path, default=WEIGHTS / 'osnet_x0_25_msmt17.pt',
+    parser.add_argument('--reid-model', type=Path, default=WEIGHTS / 'clip_market1501.pt ',
                         help='reid model path')
     parser.add_argument('--tracking-method', type=str, default='deepocsort',
                         help='deepocsort, botsort, strongsort, ocsort, bytetrack')
@@ -124,7 +125,7 @@ def parse_opt():
                         help='file/dir/URL/glob, 0 for webcam')
     parser.add_argument('--imgsz', '--img', '--img-size', nargs='+', type=int, default=[640],
                         help='inference size h,w')
-    parser.add_argument('--conf', type=float, default=0.4,
+    parser.add_argument('--conf', type=float, default=0.01,
                         help='confidence threshold')
     parser.add_argument('--iou', type=float, default=0.4,
                         help='intersection over union (IoU) threshold for NMS')
