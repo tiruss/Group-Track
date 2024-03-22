@@ -57,20 +57,9 @@ Example:
         probs = r.probs  # Class probabilities for classification outputs
 """
 
-#박스간 중심점거리
-def calculate_center_distance(box1, box2):
-    # 각 박스의 중심점 계산
-    center1_x = (box1[0] + box1[2]) / 2
-    center1_y = (box1[1] + box1[3]) / 2
-    center2_x = (box2[0] + box2[2]) / 2
-    center2_y = (box2[1] + box2[3]) / 2
-    
-    # 두 중심점 간의 거리 계산
-    distance = ((center1_x - center2_x) ** 2 + (center1_y - center2_y) ** 2) ** 0.5
-    return distance
 
 #그룹 pair
-def group_pairs(bbox_cls_0, bbox_cls_1, bbox_id_0, bbox_id_1, distance_threshold):
+def group_pairs(bbox_cls_0, bbox_cls_1, bbox_id_0, bbox_id_1):
     matches = []
     
     for person_idx, person_box in enumerate(bbox_cls_0):
@@ -80,12 +69,10 @@ def group_pairs(bbox_cls_0, bbox_cls_1, bbox_id_0, bbox_id_1, distance_threshold
         for group_idx, group_box in enumerate(bbox_cls_1):
             iou = calculate_iou(person_box, group_box)  # IoU 계산
 
-            # IoU가 일정 기준치 이상인 경우에만 중심 거리를 계산하여 매칭을 고려
-            if iou > best_iou:
-                center_distance = calculate_center_distance(person_box, group_box)
-                if iou > 0.2 and center_distance <= distance_threshold:
-                    best_iou = iou
-                    best_group_id = bbox_id_1[group_idx]
+            # IoU가 일정 기준치 이상인 경우에만 매칭을 고려
+            if iou > best_iou and iou > 0.2:
+                best_iou = iou
+                best_group_id = bbox_id_1[group_idx]
 
         # 최종 매칭 리스트에 추가
         matches.append((int(bbox_id_0[person_idx]), int(best_group_id)))
@@ -157,7 +144,6 @@ class BasePredictor:
         
         self.current_frame = 0
         self.previous_frame_data = {}
-        self.dead_count = {}
         # Usable if setup is done
         self.model = None
         self.data = self.args.data  # data_dict
@@ -178,6 +164,8 @@ class BasePredictor:
         self.new_ori_group_id=[]
         self.new_gid=1
         self.missing_frame_counts={}
+        self.prev_matches = None
+     
         callbacks.add_integration_callbacks(self)
 
     def preprocess(self, im):
@@ -251,12 +239,7 @@ class BasePredictor:
                 plot_args['im_gpu'] = im[idx]
             self.plotted_img = result.plot(**plot_args)
           
-        # Write
-        if self.args.save_txt:
-            result.save_txt(f'{self.txt_path}.txt', save_conf=self.args.save_conf)
-        if self.args.save_crop:
-            result.save_crop(save_dir=self.save_dir / 'crops',
-                             file_name=self.data_path.stem + ('' if self.dataset.mode == 'image' else f'_{frame}'))
+
 
         return log_string
 
@@ -265,7 +248,6 @@ class BasePredictor:
         return preds
 
 
-    
     
     
     def __call__(self, source=None, model=None, stream=False, *args, **kwargs):
@@ -306,47 +288,45 @@ class BasePredictor:
 
 
 
+        
+        
     
-    
-    # # 그룹 카운팅하여 매칭하는 코드
     def update_group_pair_counts(self, matches):
         self.current_frame += 1
         prev_frame = self.previous_frame_data.copy()
-       
+    
         # 현재 프레임에서 새롭게 발견된 key를 추가하고, 존재하는 key의 카운트를 업데이트합니다.
         for key in matches:
             if key in prev_frame:
-                # 이미 존재하는 key의 카운트를 증가시킵니다. 최대값은 30입니다.
-                #카운팅
-                int=30
                 if key[1] > 0:
-                    
-                    self.previous_frame_data[key] = min(prev_frame[key] + 1, int)
-                if self.previous_frame_data[key]==int:
-                    a = 1
-                    if key[1] not in self.ori_group_id:
-                        self.ori_group_id.append(key[1])
-                        self.new_ori_group_id.append(self.new_gid)
-                        self.new_gid +=1         
+                # 이미 존재하는 key의 카운트를 증가시킵니다. 최대값은 60입니다.
+                    self.previous_frame_data[key] = min(prev_frame[key] + 1, 60)
             else:
                 # 새로운 key를 추가합니다.
                 self.previous_frame_data[key] = 1
-      
-        # 이전 프레임에 있었지만 현재 프레임에서 사라진 key를 찾아서 삭제합니다.
-        keys_to_remove = [key for key in prev_frame if key not in matches]
-        for key in keys_to_remove:
-         
-            del self.previous_frame_data[key]
+                
+        keys_to_delete = [] 
+        # 이전 프레임에 있었지만 현재 프레임에서 사라진 key에 대한 처리
+        if self.current_frame >=60:
             
-        
+            for key in prev_frame:
+                if key not in matches:
+                    self.previous_frame_data[key] = max(prev_frame[key] - 2, 0)
+                    if self.previous_frame_data[key] == 0:
+                        keys_to_delete.append(key)
+                else:
+                    if key[1] not in self.ori_group_id and self.previous_frame_data[key]>=40:
+                        self.ori_group_id.append(key[1])
+                        self.new_ori_group_id.append(self.new_gid)
+                        self.new_gid +=1  
+            for key in keys_to_delete:
+                del self.previous_frame_data[key]
+
+        # 데이터 정렬
         sorted_keys = sorted(self.previous_frame_data.keys(), reverse=True)
         self.previous_frame_data = {key: self.previous_frame_data[key] for key in sorted_keys}
-  
- 
 
-        
-    
-        
+
     @smart_inference_mode()
     def stream_inference(self, source=None, model=None, *args, **kwargs):
         """Streams real-time inference on camera feed and saves results to file."""
@@ -393,7 +373,7 @@ class BasePredictor:
                     else:
                         self.results = self.model.postprocess(path, preds, im, im0s)
                 
-   
+
             
                 self.run_callbacks('on_predict_postprocess_end')
                 # Visualize, save, write results
@@ -416,26 +396,25 @@ class BasePredictor:
 
 
 
-                
-                matches = group_pairs(bbox_cls_0, bbox_cls_1, bbox_id_0, bbox_id_1,120)
-                
+                matches = group_pairs(bbox_cls_0, bbox_cls_1, bbox_id_0, bbox_id_1)
                 # 현재 프레임수 
                 frame=self.dataset.frame
                 
     
-                #카운팅기반 코드 
 
                 self.update_group_pair_counts(matches)
                 
                 #프레임의 person,group매칭 id들을 새로운 곳에 저장을하고 새로 하나씩 id를 부여하는 코드
                 
-                self.kk=[]
-
+                self.kk= []
+             
                 self.kk.append(self.ori_group_id)
                 self.kk.append(self.new_ori_group_id)
+                print(self.kk)
                 ########################
-                
+           
 
+               
                 for i in range(n):
                     self.seen += 1
                     self.results[i].speed = {
@@ -454,7 +433,8 @@ class BasePredictor:
                     ###show-labels가 저장되는곳
                     if self.args.save and self.plotted_img is not None:
                         self.save_preds(vid_cap, i, str(self.save_dir / p.name))
-                  
+        
+
                         
 
                 self.run_callbacks('on_predict_batch_end')
@@ -507,7 +487,19 @@ class BasePredictor:
         cv2.imshow(str(p), im0)
         cv2.waitKey(500 if self.batch[3].startswith('image') else 1)  # 1 millisecond
 
+
+
+    def save_txt(self, cls, txt_file='save.txt', save_conf=False,group_list=None):
+
+    
+        if cls:
+            Path(txt_file).parent.mkdir(parents=True, exist_ok=True)  # make directory
+            with open(txt_file, 'a') as f:
+                f.writelines(' '.join([str(c) for c in cls]) + '\n')
+
     def save_preds(self, vid_cap, idx, save_path):
+        
+        
         """Save video predictions as mp4 at specified path."""
         im0 = self.plotted_img
         # Save imgs
@@ -549,5 +541,8 @@ class BasePredictor:
     def add_callback(self, event: str, func):
         """Add callback."""
         self.callbacks[event].append(func)
+
+
+
 
 
