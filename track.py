@@ -85,20 +85,6 @@ def run(args):
 
     yolo.add_callback('on_predict_start', partial(on_predict_start, persist=True))
 
-    """
-    Yolov8 모델을 사용하지 않는 경우
-    """
-    # if 'yolov8' not in str(args.yolo_model):
-    #     # replace yolov8 model
-    #     m = get_yolo_inferer(args.yolo_model)
-    #     model = m(
-    #         model=args.yolo_model,
-    #         device=yolo.predictor.device,
-    #         args=yolo.predictor.args
-    #     )
-    #     yolo.predictor.model = model
-
-    # store custom args in predictor
     yolo.predictor.custom_args = args
 
     for r in results:
@@ -125,7 +111,7 @@ def parse_opt():
                         help='file/dir/URL/glob, 0 for webcam')
     parser.add_argument('--imgsz', '--img', '--img-size', nargs='+', type=int, default=[640],
                         help='inference size h,w')
-    parser.add_argument('--conf', type=float, default=0.01,
+    parser.add_argument('--conf', type=float, default=0.2,
                         help='confidence threshold')
     parser.add_argument('--iou', type=float, default=0.4,
                         help='intersection over union (IoU) threshold for NMS')
