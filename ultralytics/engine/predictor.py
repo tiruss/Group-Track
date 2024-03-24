@@ -27,6 +27,7 @@ Usage - formats:
                               yolov8n_edgetpu.tflite     # TensorFlow Edge TPU
                               yolov8n_paddle_model       # PaddlePaddle
 """
+import json
 import platform
 import threading
 from pathlib import Path
@@ -55,6 +56,55 @@ Example:
         masks = r.masks  # Masks object for segment masks outputs
         probs = r.probs  # Class probabilities for classification outputs
 """
+
+
+#그룹 pair
+def group_pairs(bbox_cls_0, bbox_cls_1, bbox_id_0, bbox_id_1):
+    matches = []
+    
+    for person_idx, person_box in enumerate(bbox_cls_0):
+        best_iou = -1  # 가장 좋은 IoU 값을 추적
+        best_group_id = -1  # 매칭되지 않는 경우를 처리하기 위해 초기값 -1 설정
+
+        for group_idx, group_box in enumerate(bbox_cls_1):
+            iou = calculate_iou(person_box, group_box)  # IoU 계산
+
+            # IoU가 일정 기준치 이상인 경우에만 매칭을 고려
+            if iou > best_iou and iou > 0.2:
+                best_iou = iou
+                best_group_id = bbox_id_1[group_idx]
+
+        # 최종 매칭 리스트에 추가
+        matches.append((int(bbox_id_0[person_idx]), int(best_group_id)))
+    
+    return matches
+
+#iou계산
+def calculate_iou(box1, box2):
+    # Unpack the positions
+    x1_min, y1_min, x1_max, y1_max = box1
+    x2_min, y2_min, x2_max, y2_max = box2
+    
+    # Calculate intersection area
+    inter_width = min(x1_max, x2_max) - max(x1_min, x2_min)
+    inter_height = min(y1_max, y2_max) - max(y1_min, y2_min)
+    
+    if inter_width <= 0 or inter_height <= 0:
+        # No overlap
+        return 0.0
+    
+    intersection_area = inter_width * inter_height
+    
+    # Calculate union area
+    box1_area = (x1_max - x1_min) * (y1_max - y1_min)
+    box2_area = (x2_max - x2_min) * (y2_max - y2_min)
+    
+    union_area = box1_area + box2_area - intersection_area
+    
+    # Calculate IoU
+    iou = intersection_area / union_area
+    
+    return iou
 
 
 class BasePredictor:
@@ -91,7 +141,9 @@ class BasePredictor:
         self.done_warmup = False
         if self.args.show:
             self.args.show = check_imshow(warn=True)
-
+        
+        self.current_frame = 0
+        self.previous_frame_data = {}
         # Usable if setup is done
         self.model = None
         self.data = self.args.data  # data_dict
@@ -108,6 +160,12 @@ class BasePredictor:
         self.callbacks = _callbacks or callbacks.get_default_callbacks()
         self.txt_path = None
         self._lock = threading.Lock()  # for automatic thread-safe inference
+        self.ori_group_id=[]
+        self.new_ori_group_id=[]
+        self.new_gid=1
+        self.missing_frame_counts={}
+        self.prev_matches = None
+     
         callbacks.add_integration_callbacks(self)
 
     def preprocess(self, im):
@@ -149,9 +207,10 @@ class BasePredictor:
         same_shapes = all(x.shape == im[0].shape for x in im)
         letterbox = LetterBox(self.imgsz, auto=same_shapes and self.model.pt, stride=self.model.stride)
         return [letterbox(image=x) for x in im]
-
+    
     def write_results(self, idx, results, batch):
         """Write inference results to a file or directory."""
+     
         p, im, _ = batch
         log_string = ''
         if len(im.shape) == 3:
@@ -172,16 +231,15 @@ class BasePredictor:
                 'line_width': self.args.line_width,
                 'boxes': self.args.show_boxes,
                 'conf': self.args.show_conf,
-                'labels': self.args.show_labels}
+                'labels': self.args.show_labels,
+                'count_hm': self.previous_frame_data,
+                'group_list': self.kk
+                }
             if not self.args.retina_masks:
                 plot_args['im_gpu'] = im[idx]
             self.plotted_img = result.plot(**plot_args)
-        # Write
-        if self.args.save_txt:
-            result.save_txt(f'{self.txt_path}.txt', save_conf=self.args.save_conf)
-        if self.args.save_crop:
-            result.save_crop(save_dir=self.save_dir / 'crops',
-                             file_name=self.data_path.stem + ('' if self.dataset.mode == 'image' else f'_{frame}'))
+          
+
 
         return log_string
 
@@ -189,6 +247,9 @@ class BasePredictor:
         """Post-processes predictions for an image and returns them."""
         return preds
 
+
+    
+    
     def __call__(self, source=None, model=None, stream=False, *args, **kwargs):
         """Performs inference on an image or stream."""
         self.stream = stream
@@ -225,12 +286,53 @@ class BasePredictor:
         self.vid_writer = [None] * self.dataset.bs
         self.vid_frame = [None] * self.dataset.bs
 
+
+
+        
+        
+    
+    def update_group_pair_counts(self, matches):
+        self.current_frame += 1
+        prev_frame = self.previous_frame_data.copy()
+    
+        # 현재 프레임에서 새롭게 발견된 key를 추가하고, 존재하는 key의 카운트를 업데이트합니다.
+        for key in matches:
+            if key in prev_frame:
+                if key[1] > 0:
+                # 이미 존재하는 key의 카운트를 증가시킵니다. 최대값은 60입니다.
+                    self.previous_frame_data[key] = min(prev_frame[key] + 1, 60)
+            else:
+                # 새로운 key를 추가합니다.
+                self.previous_frame_data[key] = 1
+                
+        keys_to_delete = [] 
+        # 이전 프레임에 있었지만 현재 프레임에서 사라진 key에 대한 처리
+        if self.current_frame >=60:
+            
+            for key in prev_frame:
+                if key not in matches:
+                    self.previous_frame_data[key] = max(prev_frame[key] - 2, 0)
+                    if self.previous_frame_data[key] == 0:
+                        keys_to_delete.append(key)
+                else:
+                    if key[1] not in self.ori_group_id and self.previous_frame_data[key]>=40:
+                        self.ori_group_id.append(key[1])
+                        self.new_ori_group_id.append(self.new_gid)
+                        self.new_gid +=1  
+            for key in keys_to_delete:
+                del self.previous_frame_data[key]
+
+        # 데이터 정렬
+        sorted_keys = sorted(self.previous_frame_data.keys(), reverse=True)
+        self.previous_frame_data = {key: self.previous_frame_data[key] for key in sorted_keys}
+
+
     @smart_inference_mode()
     def stream_inference(self, source=None, model=None, *args, **kwargs):
         """Streams real-time inference on camera feed and saves results to file."""
         if self.args.verbose:
             LOGGER.info('')
-
+        
         # Setup model
         if not self.model:
             self.setup_model(model)
@@ -270,10 +372,49 @@ class BasePredictor:
                         self.results = self.postprocess(preds, im, im0s)
                     else:
                         self.results = self.model.postprocess(path, preds, im, im0s)
+                
 
+            
                 self.run_callbacks('on_predict_postprocess_end')
                 # Visualize, save, write results
+                
                 n = len(im0s)
+                cls= self.results[0].boxes.cls
+                id=self.results[0].boxes.id
+                bbox=self.results[0].boxes.xyxy
+                # cls 값이 0인 바운딩 
+                bbox_cls_0 = [bbox[i] for i in range(len(cls)) if cls[i] == 0]
+                bbox_cls_1 = [bbox[i] for i in range(len(cls)) if cls[i] == 1]
+
+                if id is not None and cls is not None:
+                    bbox_id_0 = [id for i, id in enumerate(id) if cls[i] == 0]
+                    bbox_id_1 = [id for i, id in enumerate(id) if cls[i] == 1]
+                else:
+                    # Handle the case where id or cls is None (e.g., print an error message)
+                    print("Warning: 'id' or 'cls' is None. Bbox filtering skipped.")
+
+
+
+
+                matches = group_pairs(bbox_cls_0, bbox_cls_1, bbox_id_0, bbox_id_1)
+                # 현재 프레임수 
+                frame=self.dataset.frame
+                
+    
+
+                self.update_group_pair_counts(matches)
+                
+                #프레임의 person,group매칭 id들을 새로운 곳에 저장을하고 새로 하나씩 id를 부여하는 코드
+                
+                self.kk= []
+             
+                self.kk.append(self.ori_group_id)
+                self.kk.append(self.new_ori_group_id)
+                print(self.kk)
+                ########################
+           
+
+               
                 for i in range(n):
                     self.seen += 1
                     self.results[i].speed = {
@@ -282,15 +423,19 @@ class BasePredictor:
                         'postprocess': profilers[2].dt * 1E3 / n}
                     p, im0 = path[i], None if self.source_type.tensor else im0s[i].copy()
                     p = Path(p)
-
+            
                     if self.args.verbose or self.args.save or self.args.save_txt or self.args.show:
                         s += self.write_results(i, self.results, (p, im, im0))
                     if self.args.save or self.args.save_txt:
                         self.results[i].save_dir = self.save_dir.__str__()
                     if self.args.show and self.plotted_img is not None:
                         self.show(p)
+                    ###show-labels가 저장되는곳
                     if self.args.save and self.plotted_img is not None:
                         self.save_preds(vid_cap, i, str(self.save_dir / p.name))
+        
+
+                        
 
                 self.run_callbacks('on_predict_batch_end')
                 yield from self.results
@@ -314,6 +459,9 @@ class BasePredictor:
             LOGGER.info(f"Results saved to {colorstr('bold', self.save_dir)}{s}")
 
         self.run_callbacks('on_predict_end')
+  
+    
+
 
     def setup_model(self, model, verbose=True):
         """Initialize YOLO model with given parameters and set it to evaluation mode."""
@@ -339,7 +487,19 @@ class BasePredictor:
         cv2.imshow(str(p), im0)
         cv2.waitKey(500 if self.batch[3].startswith('image') else 1)  # 1 millisecond
 
+
+
+    def save_txt(self, cls, txt_file='save.txt', save_conf=False,group_list=None):
+
+    
+        if cls:
+            Path(txt_file).parent.mkdir(parents=True, exist_ok=True)  # make directory
+            with open(txt_file, 'a') as f:
+                f.writelines(' '.join([str(c) for c in cls]) + '\n')
+
     def save_preds(self, vid_cap, idx, save_path):
+        
+        
         """Save video predictions as mp4 at specified path."""
         im0 = self.plotted_img
         # Save imgs
@@ -361,11 +521,13 @@ class BasePredictor:
                 else:  # stream
                     fps, w, h = 30, im0.shape[1], im0.shape[0]
                 suffix, fourcc = ('.mp4', 'avc1') if MACOS else ('.avi', 'WMV2') if WINDOWS else ('.avi', 'MJPG')
+                #여기서 track.py 파일의 for문으로 넘어감
                 self.vid_writer[idx] = cv2.VideoWriter(str(Path(save_path).with_suffix(suffix)),
                                                        cv2.VideoWriter_fourcc(*fourcc), fps, (w, h))
+               
             # Write video
             self.vid_writer[idx].write(im0)
-
+        
             # Write frame
             if self.args.save_frames:
                 cv2.imwrite(f'{frames_path}{self.vid_frame[idx]}.jpg', im0)
@@ -379,3 +541,8 @@ class BasePredictor:
     def add_callback(self, event: str, func):
         """Add callback."""
         self.callbacks[event].append(func)
+
+
+
+
+

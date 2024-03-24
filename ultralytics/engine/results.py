@@ -17,7 +17,7 @@ from ultralytics.utils import LOGGER, SimpleClass, ops
 from ultralytics.utils.plotting import Annotator, colors, save_one_box
 from ultralytics.utils.torch_utils import smart_inference_mode
 
-
+import os
 class BaseTensor(SimpleClass):
     """Base tensor class with additional methods for easy manipulation and device handling."""
 
@@ -60,7 +60,12 @@ class BaseTensor(SimpleClass):
 
     def __getitem__(self, idx):
         """Return a BaseTensor with the specified index of the data tensor."""
+        
+
+
         return self.__class__(self.data[idx], self.orig_shape)
+    
+    
 class Colors:
     # Ultralytics color palette https://ultralytics.com/
     def __init__(self):
@@ -95,7 +100,7 @@ class Results(SimpleClass):
         masks (torch.tensor, optional): A 3D tensor of detection masks, where each mask is a binary image.
         probs (torch.tensor, optional): A 1D tensor of probabilities of each class for classification task.
         keypoints (List[List[float]], optional): A list of detected keypoints for each object.
-
+ 
     Attributes:
         orig_img (numpy.ndarray): The original image as a numpy array.
         orig_shape (tuple): The original image shape in (height, width) format.
@@ -122,6 +127,9 @@ class Results(SimpleClass):
         self.path = path
         self.save_dir = None
         self._keys = 'boxes', 'masks', 'probs', 'keypoints'
+        self.frame_number = 1
+     
+
 
     def __getitem__(self, idx):
         """Return a Results object for the specified index."""
@@ -181,8 +189,9 @@ class Results(SimpleClass):
 
     def new(self):
         """Return a new Results object with the same image, path, and names."""
-        return Results(orig_img=self.orig_img, path=self.path, names=self.names)
+        return Results(orig_img=self.orig_img, path=self.path, names=self.names)  
 
+    
     def plot(
         self,
         conf=True,
@@ -202,6 +211,9 @@ class Results(SimpleClass):
         group_list=None
         
     ):
+        
+        
+    
 
         
 
@@ -230,43 +242,38 @@ class Results(SimpleClass):
             idx = pred_boxes.cls if pred_boxes else range(len(pred_masks))
             annotator.masks(pred_masks.data, colors=[colors(x, True) for x in idx], im_gpu=im_gpu)
 
-        
+
+   
         final_keys=list(count_hm.keys())
         final_values=list(count_hm.values())
-        # print('aa')
         # Plot Detect results
-        
-        
-      
-        if pred_boxes and show_boxes:
-                for i, d in reversed(list(enumerate(final_keys))):
-                    #group detecion filterec_boxes
-                    # filtered_boxes = [box for box in pred_boxes if int(box.cls) == 1]
-                    # d[0]을 group_list의 첫 번째 리스트에서 찾기
-                    if d[1] in group_list[0] :
-                        index = group_list[0].index(d[1])  # d[0]의 인덱스를 찾음
-                        mapped_value = group_list[1][index]  # 동일 인덱스의 두 번째 리스트 값
-                        name = (f'Pid:{d[0]} ') 
-                        label = (f'{name} ' + f'Gid:{mapped_value}')
     
-                    else:
-                        label = (f'Pid:{d[0]} '+'Gid:None') 
-                    color = count_colors(i, True)
-                    black_color = (0, 0, 0)
-                    annotator.box_label(pred_boxes[i].xyxy.squeeze(), label, color=color)
+        
+        frame_info_list = []
+        if pred_boxes and show_boxes:
+            pred_ids = pred_boxes.id[pred_boxes.cls==0].to(int)
+           
+            for i, pid in reversed(list(enumerate(pred_ids))):
+                if pid in group_list[0]:
+                    index = group_list[0].index(pid)
+                    mapped_value = group_list[1][index]  # The corresponding group ID
+                    label = f'pid:{pid} Gid:{mapped_value}'
+                    frame_info_list.append('1')
+                else:
+                    label = f'pid:{pid} Gid:solo'
+                    frame_info_list.append('0')
                     
-                    # for box in filtered_boxes:
-                        
-          
-                    #     group detection 색상만 지정하여 박스를 그림
-                    #     annotator.box_label(box.xyxy.squeeze(), color=black_color)  # label 생략 또는 적절한 라벨 지정
-                                
-                    
-                    
-                                
-     
+                color = count_colors(i, True)
+                annotator.box_label(pred_boxes[i].xyxy.squeeze(), label, color=color)
+               
+             
+    
+
+        self.save_frame_labels(self.frame_number, output_folder_path='predtxt',frame_info_list=frame_info_list)
+        self.frame_number += 1
+         
    
-  
+    
         # # Plot Classify results 
         if pred_probs is not None and show_probs:
             text = ',\n'.join(f'{names[j] if names else j} {pred_probs.data[j]:.2f}' for j in pred_probs.top5)
@@ -279,7 +286,19 @@ class Results(SimpleClass):
                 annotator.kpts(k, self.orig_shape, radius=kpt_radius, kpt_line=kpt_line)
 
         return annotator.result()
+    
+    
+    def save_frame_labels(self, frame_number, output_folder_path, frame_info_list):
+        # 프레임별 파일 이름 정의
+        filename = f"{output_folder_path}/frame_{frame_number:04d}_info.txt"
+        # 파일에 쓰기
+        with open(filename, 'w') as file:
+            for info in frame_info_list:
+                file.write(f'{info}\n')
+        self.frame_number += 1
 
+                 
+                
     def verbose(self):
         """Return log string for each task."""
         log_string = ''
@@ -295,19 +314,14 @@ class Results(SimpleClass):
                 log_string += f"{n} {self.names[int(c)]}{'s' * (n > 1)}, "
         return log_string
 
-    def save_txt(self, txt_file, save_conf=False):
-        """
-        Save predictions into txt file.
-
-        Args:
-            txt_file (str): txt file path.
-            save_conf (bool): save confidence score or not.
-        """
+    def save_txt(self, txt_file, save_conf=False,group_list=None):
         boxes = self.boxes
         masks = self.masks
         probs = self.probs
-        kpts = self.keypoints
+        kpts = self.keypoints      
+
         texts = []
+
         if probs is not None:
             # Classify
             [texts.append(f'{probs.data[j]:.2f} {self.names[j]}') for j in probs.top5]
@@ -324,12 +338,16 @@ class Results(SimpleClass):
                     line += (*kpt.reshape(-1).tolist(), )
                 line += (conf, ) * save_conf + (() if id is None else (id, ))
                 texts.append(('%g ' * len(line)).rstrip() % line)
-
+                
         if texts:
             Path(txt_file).parent.mkdir(parents=True, exist_ok=True)  # make directory
             with open(txt_file, 'a') as f:
                 f.writelines(text + '\n' for text in texts)
 
+    
+    
+    
+    
     def save_crop(self, save_dir, file_name=Path('im.jpg')):
         """
         Save cropped predictions to `save_dir/cls/file_name.jpg`.
