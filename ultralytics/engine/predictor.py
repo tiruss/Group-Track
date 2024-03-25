@@ -142,8 +142,9 @@ class BasePredictor:
         if self.args.show:
             self.args.show = check_imshow(warn=True)
         
-        self.current_frame = 0
+     
         self.previous_frame_data = {}
+        self.current_frame=0
         # Usable if setup is done
         self.model = None
         self.data = self.args.data  # data_dict
@@ -233,7 +234,8 @@ class BasePredictor:
                 'conf': self.args.show_conf,
                 'labels': self.args.show_labels,
                 'count_hm': self.previous_frame_data,
-                'group_list': self.kk
+                'group_list': self.kk,
+                'img_count':self.dataset.count
                 }
             if not self.args.retina_masks:
                 plot_args['im_gpu'] = im[idx]
@@ -285,10 +287,6 @@ class BasePredictor:
         self.vid_path = [None] * self.dataset.bs
         self.vid_writer = [None] * self.dataset.bs
         self.vid_frame = [None] * self.dataset.bs
-
-
-
-        
         
     
     def update_group_pair_counts(self, matches):
@@ -311,7 +309,7 @@ class BasePredictor:
             
             for key in prev_frame:
                 if key not in matches:
-                    self.previous_frame_data[key] = max(prev_frame[key] - 2, 0)
+                    self.previous_frame_data[key] = max(prev_frame[key] - 3, 0)
                     if self.previous_frame_data[key] == 0:
                         keys_to_delete.append(key)
                 else:
@@ -326,9 +324,9 @@ class BasePredictor:
         sorted_keys = sorted(self.previous_frame_data.keys(), reverse=True)
         self.previous_frame_data = {key: self.previous_frame_data[key] for key in sorted_keys}
 
-
     @smart_inference_mode()
     def stream_inference(self, source=None, model=None, *args, **kwargs):
+      
         """Streams real-time inference on camera feed and saves results to file."""
         if self.args.verbose:
             LOGGER.info('')
@@ -352,7 +350,7 @@ class BasePredictor:
 
             self.seen, self.windows, self.batch, profilers = 0, [], None, (ops.Profile(), ops.Profile(), ops.Profile())
             self.run_callbacks('on_predict_start')
-
+            
             for batch in self.dataset:
                 self.run_callbacks('on_predict_batch_start')
                 self.batch = batch
@@ -398,11 +396,16 @@ class BasePredictor:
 
                 matches = group_pairs(bbox_cls_0, bbox_cls_1, bbox_id_0, bbox_id_1)
                 # 현재 프레임수 
-                frame=self.dataset.frame
-                
-    
+             
+                # frame=self.dataset.frame
+           
+               
+                # if frame==60:
+                #     ii=1
+                # #카운팅기반 코드 
 
                 self.update_group_pair_counts(matches)
+                img_count=self.dataset.count
                 
                 #프레임의 person,group매칭 id들을 새로운 곳에 저장을하고 새로 하나씩 id를 부여하는 코드
                 
@@ -410,7 +413,7 @@ class BasePredictor:
              
                 self.kk.append(self.ori_group_id)
                 self.kk.append(self.new_ori_group_id)
-                print(self.kk)
+       
                 ########################
            
 
@@ -489,7 +492,7 @@ class BasePredictor:
 
 
 
-    def save_txt(self, cls, txt_file='save.txt', save_conf=False,group_list=None):
+    def save_txt(self, cls, txt_file='save.txt', save_conf=False):
 
     
         if cls:
@@ -541,8 +544,6 @@ class BasePredictor:
     def add_callback(self, event: str, func):
         """Add callback."""
         self.callbacks[event].append(func)
-
-
 
 
 
