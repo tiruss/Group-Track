@@ -214,37 +214,42 @@ class Results(SimpleClass):
         # Plot Detect results
         
 
-     
-      
+            
         outcomes = []
         if pred_boxes and show_boxes:
-            pred_ids = pred_boxes.id[pred_boxes.cls==0].to(int)
-           
-            ss=[f[0] for f in final_keys]
-            for i, pid in reversed(list(enumerate(pred_ids))):
-                filtered_boxes = [box for box in pred_boxes if int(box.cls) == 1]
-                findx=final_keys[ss.index(pid)][1]
-                if  findx in group_list[0]:
-                    index = group_list[0].index(findx)
-                    mapped_value = group_list[1][index]
-                    # The corresponding group ID
-                    label = (f'pid:{pid}'+ f'Gid:{mapped_value}')
-                    outcomes.append(1)
-                    
+                unique_classes = pred_boxes.cls.unique()
+                ###영상에서 사람이 디텍션이 안되고 그룹만 됬을경우 상황의 코드 추가
+                if 0 not in unique_classes:
+                    print("There are no boxes with class 0, only class 1 exists.")
                 else:
-                    label = (f'pid:{pid}'+f'Gid:solo')
-                    outcomes.append(0)
-                
-                color = count_colors(i, True)
-                black_color = (0, 0, 0)
-                annotator.box_label(pred_boxes[i].xyxy.squeeze(), label, color=color)
-           
-            # for box in filtered_boxes:
-            #         # group detection 색상만 지정하여 박스를 그림
-            #         annotator.box_label(box.xyxy.squeeze(), color=black_color)  # label 생략 또는 적절한 라벨 지정
+                    pred_ids = pred_boxes.id[pred_boxes.cls==0].to(int)
+                ##################################################################
+                    ss = [f[0] for f in final_keys]
+                    for i, pid in reversed(list(enumerate(pred_ids))):
+                        filtered_boxes = [box for box in pred_boxes if int(box.cls) == 1]
+                        findx = final_keys[ss.index(pid)][1]
+                        if findx in group_list[0]:
+                            index = group_list[0].index(findx)
+                            mapped_value = group_list[1][index]
+                            # The corresponding group ID
+                            label = f'pid:{pid} Gid:{mapped_value}'
+                            outcomes.append(1)
+                            # 그룹일 때 지정된 색상 사용
+                            color = count_colors(i, True)
+                        else:
+                            label = f'pid:{pid} Gid:solo'
+                            outcomes.append(0)
+                            # solo일 때 검은색 사용
+                            color = (0, 0, 0)  # 검은색으로 설정
+                        
+                        # annotator.box_label 함수에 색상과 라벨 정보 전달
+                        annotator.box_label(pred_boxes[i].xyxy.squeeze(), label, color=color)
+
+
+   
              
            
-        
+            #txt 저장하는 코드
             # output_folder_path='predtxt'
             # filename = f"{output_folder_path}/frame_{img_count:04d}_info.txt"
             # with open(filename, 'w') as file:
