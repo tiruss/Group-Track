@@ -79,6 +79,7 @@ def group_pairs(bbox_cls_0, bbox_cls_1, bbox_id_0, bbox_id_1):
     
     return matches
 
+
 #iou계산
 def calculate_iou(box1, box2):
     # Unpack the positions
@@ -309,11 +310,11 @@ class BasePredictor:
             
             for key in prev_frame:
                 if key not in matches:
-                    self.previous_frame_data[key] = max(prev_frame[key] - 3, 0)
+                    self.previous_frame_data[key] = max(prev_frame[key] - 1, 0)
                     if self.previous_frame_data[key] == 0:
                         keys_to_delete.append(key)
                 else:
-                    if key[1] not in self.ori_group_id and self.previous_frame_data[key]>=40:
+                    if key[1] not in self.ori_group_id and self.previous_frame_data[key]>=30:
                         self.ori_group_id.append(key[1])
                         self.new_ori_group_id.append(self.new_gid)
                         self.new_gid +=1  
@@ -384,29 +385,33 @@ class BasePredictor:
                 bbox_cls_0 = [bbox[i] for i in range(len(cls)) if cls[i] == 0]
                 bbox_cls_1 = [bbox[i] for i in range(len(cls)) if cls[i] == 1]
 
+                bbox_id_0, bbox_id_1 = [], []
+
                 if id is not None and cls is not None:
-                    bbox_id_0 = [id for i, id in enumerate(id) if cls[i] == 0]
-                    bbox_id_1 = [id for i, id in enumerate(id) if cls[i] == 1]
+                    # cls 값이 0인 바운딩 박스의 id
+                    bbox_id_0 = [id[i] for i in range(len(cls)) if cls[i] == 0]
+                    # cls 값이 1인 바운딩 박스의 id
+                    bbox_id_1 = [id[i] for i in range(len(cls)) if cls[i] == 1]
                 else:
                     # Handle the case where id or cls is None (e.g., print an error message)
                     print("Warning: 'id' or 'cls' is None. Bbox filtering skipped.")
 
 
 
-
                 matches = group_pairs(bbox_cls_0, bbox_cls_1, bbox_id_0, bbox_id_1)
-                # 현재 프레임수 
-             
+                
+                #video inference때 디버깅용으로 정의
+                # 현재 프레임수
                 # frame=self.dataset.frame
-           
                
-                # if frame==60:
+                # if frame==930:
+
                 #     ii=1
                 # #카운팅기반 코드 
 
                 self.update_group_pair_counts(matches)
                 img_count=self.dataset.count
-                
+          
                 #프레임의 person,group매칭 id들을 새로운 곳에 저장을하고 새로 하나씩 id를 부여하는 코드
                 
                 self.kk= []
@@ -544,6 +549,5 @@ class BasePredictor:
     def add_callback(self, event: str, func):
         """Add callback."""
         self.callbacks[event].append(func)
-
 
 
