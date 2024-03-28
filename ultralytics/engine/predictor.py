@@ -167,7 +167,8 @@ class BasePredictor:
         self.new_gid=1
         self.missing_frame_counts={}
         self.prev_matches = None
-     
+        self.thresold=30
+
         callbacks.add_integration_callbacks(self)
 
     def preprocess(self, im):
@@ -234,8 +235,8 @@ class BasePredictor:
                 'boxes': self.args.show_boxes,
                 'conf': self.args.show_conf,
                 'labels': self.args.show_labels,
-                'count_hm': self.previous_frame_data,
-                'group_list': self.kk,
+                'group_count': self.previous_frame_data,
+                'group_list': self.all_group,
                 'img_count':self.dataset.count
                 }
             if not self.args.retina_masks:
@@ -314,7 +315,7 @@ class BasePredictor:
                     if self.previous_frame_data[key] == 0:
                         keys_to_delete.append(key)
                 else:
-                    if key[1] not in self.ori_group_id and self.previous_frame_data[key]>=30:
+                    if key[1] not in self.ori_group_id and self.previous_frame_data[key]>=self.thresold:
                         self.ori_group_id.append(key[1])
                         self.new_ori_group_id.append(self.new_gid)
                         self.new_gid +=1  
@@ -414,10 +415,10 @@ class BasePredictor:
           
                 #프레임의 person,group매칭 id들을 새로운 곳에 저장을하고 새로 하나씩 id를 부여하는 코드
                 
-                self.kk= []
+                self.all_group= []
              
-                self.kk.append(self.ori_group_id)
-                self.kk.append(self.new_ori_group_id)
+                self.all_group.append(self.ori_group_id)
+                self.all_group.append(self.new_ori_group_id)
        
                 ########################
            
