@@ -174,7 +174,7 @@ class Results(SimpleClass):
         masks=True,
         probs=True,
         img_count=None,
-        count_hm = None,
+        group_count = None,
         group_list=None,
         
         
@@ -209,8 +209,8 @@ class Results(SimpleClass):
 
 
    
-        final_keys=list(count_hm.keys())
-        final_values=list(count_hm.values())
+        final_keys=list(group_count.keys())
+        final_values=list(group_count.values())
         # Plot Detect results
         
 
@@ -220,14 +220,13 @@ class Results(SimpleClass):
                 unique_classes = pred_boxes.cls.unique()
                 ###영상에서 사람이 디텍션이 안되고 그룹만 됬을경우 상황의 코드 추가
                 if 0 not in unique_classes:
-                    print("There are no boxes with class 0, only class 1 exists.")
+                    print("There are no boxes with person, only group exists.")
                 else:
                     pred_ids = pred_boxes.id[pred_boxes.cls==0].to(int)
-                ##################################################################
-                    ss = [f[0] for f in final_keys]
+                    matching_person = [f[0] for f in final_keys]
                     for i, pid in reversed(list(enumerate(pred_ids))):
-                        filtered_boxes = [box for box in pred_boxes if int(box.cls) == 1]
-                        findx = final_keys[ss.index(pid)][1]
+                        
+                        findx = final_keys[matching_person .index(pid)][1]
                         if findx in group_list[0]:
                             index = group_list[0].index(findx)
                             mapped_value = group_list[1][index]
