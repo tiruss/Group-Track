@@ -17,7 +17,7 @@ from ultralytics.utils import LOGGER, SimpleClass, ops
 from ultralytics.utils.plotting import Annotator, colors, save_one_box
 from ultralytics.utils.torch_utils import smart_inference_mode
 
-import os
+
 class BaseTensor(SimpleClass):
     """Base tensor class with additional methods for easy manipulation and device handling."""
 
@@ -86,33 +86,9 @@ class Colors:
 
 count_colors = Colors()  # create instance for 'from utils.plots import colors'
 
-
-
+final_outcomes=[]
 class Results(SimpleClass):
-    """
-    A class for storing and manipulating inference results.
 
-    Args:
-        orig_img (numpy.ndarray): The original image as a numpy array.
-        path (str): The path to the image file.
-        names (dict): A dictionary of class names.
-        boxes (torch.tensor, optional): A 2D tensor of bounding box coordinates for each detection.
-        masks (torch.tensor, optional): A 3D tensor of detection masks, where each mask is a binary image.
-        probs (torch.tensor, optional): A 1D tensor of probabilities of each class for classification task.
-        keypoints (List[List[float]], optional): A list of detected keypoints for each object.
- 
-    Attributes:
-        orig_img (numpy.ndarray): The original image as a numpy array.
-        orig_shape (tuple): The original image shape in (height, width) format.
-        boxes (Boxes, optional): A Boxes object containing the detection bounding boxes.
-        masks (Masks, optional): A Masks object containing the detection masks.
-        probs (Probs, optional): A Probs object containing probabilities of each class for classification task.
-        keypoints (Keypoints, optional): A Keypoints object containing detected keypoints for each object.
-        speed (dict): A dictionary of preprocess, inference, and postprocess speeds in milliseconds per image.
-        names (dict): A dictionary of class names.
-        path (str): The path to the image file.
-        _keys (tuple): A tuple of attribute names for non-empty attributes.
-    """
 
     def __init__(self, orig_img, path, names, boxes=None, masks=None, probs=None, keypoints=None) -> None:
         """Initialize the Results class."""
@@ -127,10 +103,11 @@ class Results(SimpleClass):
         self.path = path
         self.save_dir = None
         self._keys = 'boxes', 'masks', 'probs', 'keypoints'
-        self.frame_number = 1
+        self.frame_outcomes = []
+        
      
 
-
+    
     def __getitem__(self, idx):
         """Return a Results object for the specified index."""
         return self._apply('__getitem__', idx)
@@ -152,18 +129,7 @@ class Results(SimpleClass):
             self.probs = probs
 
     def _apply(self, fn, *args, **kwargs):
-        """
-        Applies a function to all non-empty attributes and returns a new Results object with modified attributes. This
-        function is internally called by methods like .to(), .cuda(), .cpu(), etc.
 
-        Args:
-            fn (str): The name of the function to apply.
-            *args: Variable length argument list to pass to the function.
-            **kwargs: Arbitrary keyword arguments to pass to the function.
-
-        Returns:
-            Results: A new Results object with attributes modified by the applied function.
-        """
         r = self.new()
         for k in self._keys:
             v = getattr(self, k)
@@ -189,10 +155,10 @@ class Results(SimpleClass):
 
     def new(self):
         """Return a new Results object with the same image, path, and names."""
-        return Results(orig_img=self.orig_img, path=self.path, names=self.names)  
+        return Results(orig_img=self.orig_img, path=self.path, names=self.names)
 
-    
     def plot(
+        
         self,
         conf=True,
         line_width=None,
@@ -207,15 +173,14 @@ class Results(SimpleClass):
         boxes=True,
         masks=True,
         probs=True,
-        count_hm = None,
-        group_list=None
+        img_count=None,
+        group_count = None,
+        group_list=None,
+        
+        
         
     ):
-        
-        
-    
 
-        
 
         
         if img is None and isinstance(self.orig_img, torch.Tensor):
@@ -244,36 +209,54 @@ class Results(SimpleClass):
 
 
    
-        final_keys=list(count_hm.keys())
-        final_values=list(count_hm.values())
+        final_keys=list(group_count.keys())
+        final_values=list(group_count.values())
         # Plot Detect results
-    
         
-        frame_info_list = []
-        if pred_boxes and show_boxes:
-            pred_ids = pred_boxes.id[pred_boxes.cls==0].to(int)
-           
-            for i, pid in reversed(list(enumerate(pred_ids))):
-                if pid in group_list[0]:
-                    index = group_list[0].index(pid)
-                    mapped_value = group_list[1][index]  # The corresponding group ID
-                    label = f'pid:{pid} Gid:{mapped_value}'
-                    frame_info_list.append('1')
-                else:
-                    label = f'pid:{pid} Gid:solo'
-                    frame_info_list.append('0')
-                    
-                color = count_colors(i, True)
-                annotator.box_label(pred_boxes[i].xyxy.squeeze(), label, color=color)
-               
-             
-    
 
-        self.save_frame_labels(self.frame_number, output_folder_path='predtxt',frame_info_list=frame_info_list)
-        self.frame_number += 1
-         
+            
+        outcomes = []
+        if pred_boxes and show_boxes:
+                unique_classes = pred_boxes.cls.unique()
+                ###영상에서 사람이 디텍션이 안되고 그룹만 됬을경우 상황의 코드 추가
+                if 0 not in unique_classes:
+                    print("There are no boxes with person, only group exists.")
+                else:
+                    pred_ids = pred_boxes.id[pred_boxes.cls==0].to(int)
+                    matching_person = [f[0] for f in final_keys]
+                    for i, pid in reversed(list(enumerate(pred_ids))):
+                        
+                        findx = final_keys[matching_person .index(pid)][1]
+                        if findx in group_list[0]:
+                            index = group_list[0].index(findx)
+                            mapped_value = group_list[1][index]
+                            # The corresponding group ID
+                            label = f'pid:{pid} Gid:{mapped_value}'
+                            outcomes.append(1)
+                            # 그룹일 때 지정된 색상 사용
+                            color = count_colors(i, True)
+                        else:
+                            label = f'pid:{pid} Gid:solo'
+                            outcomes.append(0)
+                            # solo일 때 검은색 사용
+                            color = (0, 0, 0)  # 검은색으로 설정
+                        
+                        # annotator.box_label 함수에 색상과 라벨 정보 전달
+                        annotator.box_label(pred_boxes[i].xyxy.squeeze(), label, color=color)
+
+
    
-    
+             
+           
+            #txt 저장하는 코드
+            # output_folder_path='predtxt'
+            # filename = f"{output_folder_path}/frame_{img_count:04d}_info.txt"
+            # with open(filename, 'w') as file:
+            #     for outcome in outcomes:
+            #         file.write(f'{outcome}\n')
+          
+
+        
         # # Plot Classify results 
         if pred_probs is not None and show_probs:
             text = ',\n'.join(f'{names[j] if names else j} {pred_probs.data[j]:.2f}' for j in pred_probs.top5)
@@ -286,19 +269,8 @@ class Results(SimpleClass):
                 annotator.kpts(k, self.orig_shape, radius=kpt_radius, kpt_line=kpt_line)
 
         return annotator.result()
-    
-    
-    def save_frame_labels(self, frame_number, output_folder_path, frame_info_list):
-        # 프레임별 파일 이름 정의
-        filename = f"{output_folder_path}/frame_{frame_number:04d}_info.txt"
-        # 파일에 쓰기
-        with open(filename, 'w') as file:
-            for info in frame_info_list:
-                file.write(f'{info}\n')
-        self.frame_number += 1
 
-                 
-                
+    
     def verbose(self):
         """Return log string for each task."""
         log_string = ''
@@ -315,13 +287,18 @@ class Results(SimpleClass):
         return log_string
 
     def save_txt(self, txt_file, save_conf=False,group_list=None):
+        """
+        Save predictions into txt file.
+
+        Args:
+            txt_file (str): txt file path.
+            save_conf (bool): save confidence score or not.
+        """
         boxes = self.boxes
         masks = self.masks
         probs = self.probs
-        kpts = self.keypoints      
-
+        kpts = self.keypoints
         texts = []
-
         if probs is not None:
             # Classify
             [texts.append(f'{probs.data[j]:.2f} {self.names[j]}') for j in probs.top5]
