@@ -167,7 +167,10 @@ class BasePredictor:
         self.new_gid=1
         self.missing_frame_counts={}
         self.prev_matches = None
-        self.thresold=30
+        self.threshold=self.args.group_threshold
+        self.group_frmae= self.args.group_frmae
+        self.prev_current= self.args.prev_current
+   
 
         callbacks.add_integration_callbacks(self)
 
@@ -300,18 +303,18 @@ class BasePredictor:
             if key in prev_frame:
                 if key[1] > 0:
                 # 이미 존재하는 key의 카운트를 증가시킵니다. 최대값은 60입니다.
-                    self.previous_frame_data[key] = min(prev_frame[key] + 1, 60)
+                    self.previous_frame_data[key] = min(prev_frame[key] + 1, self.group_frmae)
             else:
                 # 새로운 key를 추가합니다.
                 self.previous_frame_data[key] = 1
                 
         keys_to_delete = [] 
         # 이전 프레임에 있었지만 현재 프레임에서 사라진 key에 대한 처리
-        if self.current_frame >=60:
+        if self.current_frame >=self.group_frmae:
             
             for key in prev_frame:
                 if key not in matches:
-                    self.previous_frame_data[key] = max(prev_frame[key] - 1, 0)
+                    self.previous_frame_data[key] = max(prev_frame[key] - self.prev_current, 0)
                     if self.previous_frame_data[key] == 0:
                         keys_to_delete.append(key)
                 else:
