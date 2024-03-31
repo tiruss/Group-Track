@@ -79,6 +79,7 @@ def group_pairs(bbox_cls_0, bbox_cls_1, bbox_id_0, bbox_id_1):
     
     return matches
 
+
 #iou계산
 def calculate_iou(box1, box2):
     # Unpack the positions
@@ -142,8 +143,9 @@ class BasePredictor:
         if self.args.show:
             self.args.show = check_imshow(warn=True)
         
-        self.current_frame = 0
+     
         self.previous_frame_data = {}
+        self.current_frame=0
         # Usable if setup is done
         self.model = None
         self.data = self.args.data  # data_dict
@@ -165,7 +167,11 @@ class BasePredictor:
         self.new_gid=1
         self.missing_frame_counts={}
         self.prev_matches = None
-     
+        self.threshold=self.args.group_threshold
+        self.group_frmae= self.args.group_frmae
+        self.prev_current= self.args.prev_current
+   
+
         callbacks.add_integration_callbacks(self)
 
     def preprocess(self, im):
@@ -232,8 +238,9 @@ class BasePredictor:
                 'boxes': self.args.show_boxes,
                 'conf': self.args.show_conf,
                 'labels': self.args.show_labels,
-                'count_hm': self.previous_frame_data,
-                'group_list': self.kk
+                'group_count': self.previous_frame_data,
+                'group_list': self.all_group,
+                'img_count':self.dataset.count
                 }
             if not self.args.retina_masks:
                 plot_args['im_gpu'] = im[idx]
@@ -285,10 +292,6 @@ class BasePredictor:
         self.vid_path = [None] * self.dataset.bs
         self.vid_writer = [None] * self.dataset.bs
         self.vid_frame = [None] * self.dataset.bs
-
-
-
-        
         
     
     def update_group_pair_counts(self, matches):
@@ -300,22 +303,22 @@ class BasePredictor:
             if key in prev_frame:
                 if key[1] > 0:
                 # 이미 존재하는 key의 카운트를 증가시킵니다. 최대값은 60입니다.
-                    self.previous_frame_data[key] = min(prev_frame[key] + 1, 60)
+                    self.previous_frame_data[key] = min(prev_frame[key] + 1, self.group_frmae)
             else:
                 # 새로운 key를 추가합니다.
                 self.previous_frame_data[key] = 1
                 
         keys_to_delete = [] 
         # 이전 프레임에 있었지만 현재 프레임에서 사라진 key에 대한 처리
-        if self.current_frame >=60:
+        if self.current_frame >=self.group_frmae:
             
             for key in prev_frame:
                 if key not in matches:
-                    self.previous_frame_data[key] = max(prev_frame[key] - 2, 0)
+                    self.previous_frame_data[key] = max(prev_frame[key] - self.prev_current, 0)
                     if self.previous_frame_data[key] == 0:
                         keys_to_delete.append(key)
                 else:
-                    if key[1] not in self.ori_group_id and self.previous_frame_data[key]>=40:
+                    if key[1] not in self.ori_group_id and self.previous_frame_data[key]>=self.thresold:
                         self.ori_group_id.append(key[1])
                         self.new_ori_group_id.append(self.new_gid)
                         self.new_gid +=1  
@@ -326,9 +329,9 @@ class BasePredictor:
         sorted_keys = sorted(self.previous_frame_data.keys(), reverse=True)
         self.previous_frame_data = {key: self.previous_frame_data[key] for key in sorted_keys}
 
-
     @smart_inference_mode()
     def stream_inference(self, source=None, model=None, *args, **kwargs):
+      
         """Streams real-time inference on camera feed and saves results to file."""
         if self.args.verbose:
             LOGGER.info('')
@@ -352,7 +355,7 @@ class BasePredictor:
 
             self.seen, self.windows, self.batch, profilers = 0, [], None, (ops.Profile(), ops.Profile(), ops.Profile())
             self.run_callbacks('on_predict_start')
-
+            
             for batch in self.dataset:
                 self.run_callbacks('on_predict_batch_start')
                 self.batch = batch
@@ -386,31 +389,40 @@ class BasePredictor:
                 bbox_cls_0 = [bbox[i] for i in range(len(cls)) if cls[i] == 0]
                 bbox_cls_1 = [bbox[i] for i in range(len(cls)) if cls[i] == 1]
 
+                bbox_id_0, bbox_id_1 = [], []
+
                 if id is not None and cls is not None:
-                    bbox_id_0 = [id for i, id in enumerate(id) if cls[i] == 0]
-                    bbox_id_1 = [id for i, id in enumerate(id) if cls[i] == 1]
+                    # cls 값이 0인 바운딩 박스의 id
+                    bbox_id_0 = [id[i] for i in range(len(cls)) if cls[i] == 0]
+                    # cls 값이 1인 바운딩 박스의 id
+                    bbox_id_1 = [id[i] for i in range(len(cls)) if cls[i] == 1]
                 else:
                     # Handle the case where id or cls is None (e.g., print an error message)
                     print("Warning: 'id' or 'cls' is None. Bbox filtering skipped.")
 
 
 
-
                 matches = group_pairs(bbox_cls_0, bbox_cls_1, bbox_id_0, bbox_id_1)
-                # 현재 프레임수 
-                frame=self.dataset.frame
                 
-    
+                #video inference때 디버깅용으로 정의
+                # 현재 프레임수
+                # frame=self.dataset.frame
+               
+                # if frame==930:
+
+                #     ii=1
+                # #카운팅기반 코드 
 
                 self.update_group_pair_counts(matches)
-                
+                img_count=self.dataset.count
+          
                 #프레임의 person,group매칭 id들을 새로운 곳에 저장을하고 새로 하나씩 id를 부여하는 코드
                 
-                self.kk= []
+                self.all_group= []
              
-                self.kk.append(self.ori_group_id)
-                self.kk.append(self.new_ori_group_id)
-                print(self.kk)
+                self.all_group.append(self.ori_group_id)
+                self.all_group.append(self.new_ori_group_id)
+       
                 ########################
            
 
@@ -489,7 +501,7 @@ class BasePredictor:
 
 
 
-    def save_txt(self, cls, txt_file='save.txt', save_conf=False,group_list=None):
+    def save_txt(self, cls, txt_file='save.txt', save_conf=False):
 
     
         if cls:
@@ -541,8 +553,5 @@ class BasePredictor:
     def add_callback(self, event: str, func):
         """Add callback."""
         self.callbacks[event].append(func)
-
-
-
 
 
