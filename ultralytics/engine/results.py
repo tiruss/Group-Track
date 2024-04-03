@@ -16,7 +16,7 @@ from ultralytics.data.augment import LetterBox
 from ultralytics.utils import LOGGER, SimpleClass, ops
 from ultralytics.utils.plotting import Annotator, colors, save_one_box
 from ultralytics.utils.torch_utils import smart_inference_mode
-
+from pathlib import Path
 
 class BaseTensor(SimpleClass):
     """Base tensor class with additional methods for easy manipulation and device handling."""
@@ -88,6 +88,30 @@ count_colors = Colors()  # create instance for 'from utils.plots import colors'
 
 final_outcomes=[]
 class Results(SimpleClass):
+    """
+    A class for storing and manipulating inference results.
+
+    Args:
+        orig_img (numpy.ndarray): The original image as a numpy array.
+        path (str): The path to the image file.
+        names (dict): A dictionary of class names.
+        boxes (torch.tensor, optional): A 2D tensor of bounding box coordinates for each detection.
+        masks (torch.tensor, optional): A 3D tensor of detection masks, where each mask is a binary image.
+        probs (torch.tensor, optional): A 1D tensor of probabilities of each class for classification task.
+        keypoints (List[List[float]], optional): A list of detected keypoints for each object.
+ 
+    Attributes:
+        orig_img (numpy.ndarray): The original image as a numpy array.
+        orig_shape (tuple): The original image shape in (height, width) format.
+        boxes (Boxes, optional): A Boxes object containing the detection bounding boxes.
+        masks (Masks, optional): A Masks object containing the detection masks.
+        probs (Probs, optional): A Probs object containing probabilities of each class for classification task.
+        keypoints (Keypoints, optional): A Keypoints object containing detected keypoints for each object.
+        speed (dict): A dictionary of preprocess, inference, and postprocess speeds in milliseconds per image.
+        names (dict): A dictionary of class names.
+        path (str): The path to the image file.
+        _keys (tuple): A tuple of attribute names for non-empty attributes.
+    """
 
 
     def __init__(self, orig_img, path, names, boxes=None, masks=None, probs=None, keypoints=None) -> None:
@@ -103,9 +127,10 @@ class Results(SimpleClass):
         self.path = path
         self.save_dir = None
         self._keys = 'boxes', 'masks', 'probs', 'keypoints'
-        self.frame_outcomes = []
-        
-     
+        self.final_keys=None
+        self.group_list=None
+
+
 
     
     def __getitem__(self, idx):
@@ -176,7 +201,7 @@ class Results(SimpleClass):
         img_count=None,
         group_count = None,
         group_list=None,
-        
+        frame_count=None
         
         
     ):
@@ -209,13 +234,9 @@ class Results(SimpleClass):
 
 
    
-        final_keys=list(group_count.keys())
-        final_values=list(group_count.values())
-        # Plot Detect results
-        
+        self.final_keys=list(group_count.keys())
 
-            
-        outcomes = []
+        self.group_list=group_list
         if pred_boxes and show_boxes:
                 unique_classes = pred_boxes.cls.unique()
                 ###영상에서 사람이 디텍션이 안되고 그룹만 됬을경우 상황의 코드 추가
@@ -223,50 +244,38 @@ class Results(SimpleClass):
                     print("There are no boxes with person, only group exists.")
                 else:
                     pred_ids = pred_boxes.id[pred_boxes.cls==0].to(int)
-                    matching_person = [f[0] for f in final_keys]
+                    matching_person= [f[0] for f in self.final_keys]
                     for i, pid in reversed(list(enumerate(pred_ids))):
-                        
-                        findx = final_keys[matching_person .index(pid)][1]
+                        findx = self.final_keys[matching_person.index(pid)][1]
+                       
                         if findx in group_list[0]:
                             index = group_list[0].index(findx)
                             mapped_value = group_list[1][index]
                             # The corresponding group ID
                             label = f'pid:{pid} Gid:{mapped_value}'
-                            outcomes.append(1)
+
                             # 그룹일 때 지정된 색상 사용
                             color = count_colors(i, True)
                         else:
                             label = f'pid:{pid} Gid:solo'
-                            outcomes.append(0)
+                     
                             # solo일 때 검은색 사용
                             color = (0, 0, 0)  # 검은색으로 설정
-                        
                         # annotator.box_label 함수에 색상과 라벨 정보 전달
                         annotator.box_label(pred_boxes[i].xyxy.squeeze(), label, color=color)
 
 
-   
-             
-           
-            #txt 저장하는 코드
-            # output_folder_path='predtxt'
-            # filename = f"{output_folder_path}/frame_{img_count:04d}_info.txt"
-            # with open(filename, 'w') as file:
-            #     for outcome in outcomes:
-            #         file.write(f'{outcome}\n')
-          
+                
+                # # Plot Classify results 
+                if pred_probs is not None and show_probs:
+                    text = ',\n'.join(f'{names[j] if names else j} {pred_probs.data[j]:.2f}' for j in pred_probs.top5)
+                    x = round(self.orig_shape[0] * 0.03)
+                    annotator.text([x, x], text, txt_color=(255, 255, 255))  # TODO: allow setting colors
 
-        
-        # # Plot Classify results 
-        if pred_probs is not None and show_probs:
-            text = ',\n'.join(f'{names[j] if names else j} {pred_probs.data[j]:.2f}' for j in pred_probs.top5)
-            x = round(self.orig_shape[0] * 0.03)
-            annotator.text([x, x], text, txt_color=(255, 255, 255))  # TODO: allow setting colors
-
-        # Plot Pose results
-        if self.keypoints is not None:
-            for k in reversed(self.keypoints.data):
-                annotator.kpts(k, self.orig_shape, radius=kpt_radius, kpt_line=kpt_line)
+                # Plot Pose results
+                if self.keypoints is not None:
+                    for k in reversed(self.keypoints.data):
+                        annotator.kpts(k, self.orig_shape, radius=kpt_radius, kpt_line=kpt_line)
 
         return annotator.result()
 
@@ -286,7 +295,7 @@ class Results(SimpleClass):
                 log_string += f"{n} {self.names[int(c)]}{'s' * (n > 1)}, "
         return log_string
 
-    def save_txt(self, txt_file, save_conf=False,group_list=None):
+    def save_txt(self, txt_file, save_conf=False):
         """
         Save predictions into txt file.
 
@@ -294,37 +303,44 @@ class Results(SimpleClass):
             txt_file (str): txt file path.
             save_conf (bool): save confidence score or not.
         """
+        final_keys=self.final_keys
         boxes = self.boxes
-        masks = self.masks
-        probs = self.probs
-        kpts = self.keypoints
-        texts = []
-        if probs is not None:
-            # Classify
-            [texts.append(f'{probs.data[j]:.2f} {self.names[j]}') for j in probs.top5]
-        elif boxes:
-            # Detect/segment/pose
-            for j, d in enumerate(boxes):
-                c, conf, id = int(d.cls), float(d.conf), None if d.id is None else int(d.id.item())
-                line = (c, *d.xywhn.view(-1))
-                if masks:
-                    seg = masks[j].xyn[0].copy().reshape(-1)  # reversed mask.xyn, (n,2) to (n*2)
-                    line = (c, *seg)
-                if kpts is not None:
-                    kpt = torch.cat((kpts[j].xyn, kpts[j].conf[..., None]), 2) if kpts[j].has_visible else kpts[j].xyn
-                    line += (*kpt.reshape(-1).tolist(), )
-                line += (conf, ) * save_conf + (() if id is None else (id, ))
-                texts.append(('%g ' * len(line)).rstrip() % line)
+        outcomes = []
+        group_ids = set()
+        group_list=self.group_list
+        if boxes:
+            unique_classes = boxes.cls.unique()
+            if 0 not in unique_classes:
+                print("There are no boxes with person, only group exists.")
+            else:
                 
-        if texts:
-            Path(txt_file).parent.mkdir(parents=True, exist_ok=True)  # make directory
-            with open(txt_file, 'a') as f:
-                f.writelines(text + '\n' for text in texts)
+                pred_ids = boxes.id[boxes.cls == 0].to(int) # 사람에 해당하는 객체 ID
+                matching_person = [f[0] for f in final_keys]  # 최종 키에서 사람 ID 추출
+                for i, pid in reversed(list(enumerate(pred_ids))):
+                    findx = final_keys[matching_person.index(pid)][1]
+                    
+                    if findx and findx in group_list[0]:
+                        index = group_list[0].index(findx)
+                        mapped_value = group_list[1][index]
+                        outcomes.append('0')  # '0' for person
+                        group_ids.add(mapped_value)
+                    else:
+                        outcomes.append('0')  # '0' for solo
 
-    
-    
-    
-    
+        # Prepare the directory
+        Path(txt_file).parent.mkdir(parents=True, exist_ok=True)
+
+        # Save to txt
+        with open(txt_file, 'w') as file:
+            for outcome in outcomes:
+                file.write(f'{outcome}\n')
+            for gid in group_ids:
+                file.write('1\n')  
+
+        print(f"Results saved to {txt_file}")
+                
+                
+                
     def save_crop(self, save_dir, file_name=Path('im.jpg')):
         """
         Save cropped predictions to `save_dir/cls/file_name.jpg`.
@@ -587,3 +603,5 @@ class Probs(BaseTensor):
     def top5conf(self):
         """Return the confidences of top 5."""
         return self.data[self.top5]
+
+                
