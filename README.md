@@ -42,6 +42,11 @@ $ python track.py --source ${source} --yolo-model yolov8-group.pt
 <details>
 <summary>Yolo models</summary>
 
+
+## Evalution.py
+$ python track.py --source <path/to/your/image/folder> --yolo-model yolov8-group.pt --save-txt
+$ python evaluation.py --true_dir <path/to/ground/truth/txt> --pred_dir <path/to/predicted/txt>
+
 ## Detail of models
 
 
