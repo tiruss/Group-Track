@@ -119,5 +119,9 @@ prev_current : 1  # (int) Difference between previous frame and current frame
 # Custom config.yaml ---------------------------------------------------------------------------------------------------
 cfg:  # (str, optional) for overriding defaults.yaml
 
+
+#evl.py
+true_dir : False
+pred_dir : False
 # Tracker settings ------------------------------------------------------------------------------------------------------
 tracker: botsort.yaml  # (str) tracker type, choices=[botsort.yaml, bytetrack.yaml]
