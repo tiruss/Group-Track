@@ -170,8 +170,8 @@ class BasePredictor:
         self.threshold=self.args.group_threshold
         self.group_frmae= self.args.group_frmae
         self.prev_current= self.args.prev_current
-   
-
+ 
+        
         callbacks.add_integration_callbacks(self)
 
     def preprocess(self, im):
@@ -240,13 +240,18 @@ class BasePredictor:
                 'labels': self.args.show_labels,
                 'group_count': self.previous_frame_data,
                 'group_list': self.all_group,
-                'img_count':self.dataset.count
+                'img_count':self.dataset.count,
+                'frame_count':frame
                 }
             if not self.args.retina_masks:
                 plot_args['im_gpu'] = im[idx]
             self.plotted_img = result.plot(**plot_args)
           
-
+        if self.args.save_txt:
+            result.save_txt(f'{self.txt_path}.txt', save_conf=self.args.save_conf)
+        if self.args.save_crop:
+            result.save_crop(save_dir=self.save_dir / 'crops',
+                             file_name=self.data_path.stem + ('' if self.dataset.mode == 'image' else f'_{frame}'))
 
         return log_string
 
@@ -297,6 +302,7 @@ class BasePredictor:
     def update_group_pair_counts(self, matches):
         self.current_frame += 1
         prev_frame = self.previous_frame_data.copy()
+
     
         # 현재 프레임에서 새롭게 발견된 key를 추가하고, 존재하는 key의 카운트를 업데이트합니다.
         for key in matches:
@@ -314,11 +320,11 @@ class BasePredictor:
             
             for key in prev_frame:
                 if key not in matches:
-                    self.previous_frame_data[key] = max(prev_frame[key] - self.prev_current, 0)
+                    self.previous_frame_data[key] = max(prev_frame[key] -self.prev_current, 0)
                     if self.previous_frame_data[key] == 0:
                         keys_to_delete.append(key)
                 else:
-                    if key[1] not in self.ori_group_id and self.previous_frame_data[key]>=self.thresold:
+                    if key[1] not in self.ori_group_id and self.previous_frame_data[key]>=self.threshold:
                         self.ori_group_id.append(key[1])
                         self.new_ori_group_id.append(self.new_gid)
                         self.new_gid +=1  
@@ -403,19 +409,21 @@ class BasePredictor:
 
 
                 matches = group_pairs(bbox_cls_0, bbox_cls_1, bbox_id_0, bbox_id_1)
-                
+                # 현재 프레임수 
+
                 #video inference때 디버깅용으로 정의
-                # 현재 프레임수
                 # frame=self.dataset.frame
                
-                # if frame==930:
+                # if frame==100:
 
                 #     ii=1
                 # #카운팅기반 코드 
 
                 self.update_group_pair_counts(matches)
                 img_count=self.dataset.count
-          
+                if img_count==99:
+                    dd=2
+                
                 #프레임의 person,group매칭 id들을 새로운 곳에 저장을하고 새로 하나씩 id를 부여하는 코드
                 
                 self.all_group= []
@@ -501,13 +509,6 @@ class BasePredictor:
 
 
 
-    def save_txt(self, cls, txt_file='save.txt', save_conf=False):
-
-    
-        if cls:
-            Path(txt_file).parent.mkdir(parents=True, exist_ok=True)  # make directory
-            with open(txt_file, 'a') as f:
-                f.writelines(' '.join([str(c) for c in cls]) + '\n')
 
     def save_preds(self, vid_cap, idx, save_path):
         
@@ -516,6 +517,7 @@ class BasePredictor:
         im0 = self.plotted_img
         # Save imgs
         if self.dataset.mode == 'image':
+    
             cv2.imwrite(save_path, im0)
         else:  # 'video' or 'stream'
             frames_path = f'{save_path.split(".", 1)[0]}_frames/'
