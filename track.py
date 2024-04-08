@@ -166,6 +166,9 @@ def parse_opt():
                         help='print results per frame')
     parser.add_argument('--agnostic-nms', default=False, action='store_true',
                         help='class-agnostic NMS')
+    parser.add_argument('--save-json', default=False, action='store_true',
+                        help='')
+    
 
     opt = parser.parse_args()
     return opt
