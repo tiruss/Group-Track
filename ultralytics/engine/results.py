@@ -11,7 +11,7 @@ from pathlib import Path
 
 import numpy as np
 import torch
-
+import json
 from ultralytics.data.augment import LetterBox
 from ultralytics.utils import LOGGER, SimpleClass, ops
 from ultralytics.utils.plotting import Annotator, colors, save_one_box
@@ -129,6 +129,8 @@ class Results(SimpleClass):
         self._keys = 'boxes', 'masks', 'probs', 'keypoints'
         self.final_keys=None
         self.group_list=None
+        self.img_count=None
+        self.frame_count= None
 
 
 
@@ -235,7 +237,8 @@ class Results(SimpleClass):
 
    
         self.final_keys=list(group_count.keys())
-
+        self.viedo_count=frame_count
+        self.img_count=img_count
         self.group_list=group_list
         if pred_boxes and show_boxes:
                 unique_classes = pred_boxes.cls.unique()
@@ -340,7 +343,79 @@ class Results(SimpleClass):
         print(f"Results saved to {txt_file}")
                 
                 
+    def save_json(self, jsonfile):
+        
+        if self.viedo_count ==0:
+        
+            frame = self.img_count 
+        else :
+            
+            frame= self.viedo_count
+        final_keys = self.final_keys
+        group_list = self.group_list
+        
+        objects = []
+
+        for boxes in self.boxes:
+            if boxes.cls == 0:  # 'person' 객체에 대해서만 처리
+                pid = boxes.id.item()
+                bbox = boxes.xyxy.squeeze().tolist()
                 
+                # 매핑된 그룹 ID 찾기
+                group_id = "solo"  # 기본값 설정
+                for person_id, mapped_group_id in final_keys:
+                    if pid == person_id:
+                        if mapped_group_id in group_list[0]:
+                            index = group_list[0].index(mapped_group_id)
+                            group_id = group_list[1][index]  # 매핑된 그룹 ID 할당
+                            break
+                obj_info = {
+                    "Type": "Person",
+                    "ID": pid,
+                    "Location": {
+                        "Bounding Box": {
+                            "x1": bbox[0],
+                            "y1": bbox[1],
+                            "x2": bbox[2],
+                            "y2": bbox[3]
+                        }
+                    },
+                    "Confidence Score": boxes.conf.item(),
+                    "GroupID": group_id
+                }
+                objects.append(obj_info)
+
+        # 객체 정보를 person_id 기준으로 정렬
+        objects = sorted(objects, key=lambda x: x["ID"])
+
+        # JSON 파일 경로
+        json_file_path = Path(jsonfile) / 'inference_results.json'
+        
+        # 파일이 이미 존재하면 기존 데이터 불러오기
+        if json_file_path.exists():
+            with json_file_path.open('r', encoding='utf-8') as f:
+                data = json.load(f)
+            # 기존 프레임 데이터에 현재 프레임 데이터 추가
+            data.append({
+                "frame": frame,
+                "Objects": objects
+            })
+        else:
+            # 파일이 존재하지 않으면 새로운 데이터 구조 생성
+            data = [{
+                "resolution": '720p',
+                "width": 1280,
+                "height": 720,
+                "frame": frame,
+                "Objects": objects
+            }]
+        
+        # 변경된 데이터를 파일에 저장
+        with json_file_path.open('w', encoding='utf-8') as f:
+            json.dump(data, f, ensure_ascii=False, indent=4)
+
+
+            
     def save_crop(self, save_dir, file_name=Path('im.jpg')):
         """
         Save cropped predictions to `save_dir/cls/file_name.jpg`.
