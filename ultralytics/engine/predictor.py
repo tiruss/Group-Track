@@ -252,7 +252,9 @@ class BasePredictor:
         if self.args.save_crop:
             result.save_crop(save_dir=self.save_dir / 'crops',
                              file_name=self.data_path.stem + ('' if self.dataset.mode == 'image' else f'_{frame}'))
-
+        if self.args.save_json:
+            result.save_json()
+            
         return log_string
 
     def postprocess(self, preds, img, orig_imgs):
