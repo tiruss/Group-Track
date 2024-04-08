@@ -389,7 +389,7 @@ class Results(SimpleClass):
         objects = sorted(objects, key=lambda x: x["ID"])
 
         # JSON 파일 경로
-        json_file_path = Path(jsonfile) / 'inference_results.json'
+        json_file_path = Path(  'json/inference_results.json')
         
         # 파일이 이미 존재하면 기존 데이터 불러오기
         if json_file_path.exists():
@@ -415,7 +415,7 @@ class Results(SimpleClass):
             json.dump(data, f, ensure_ascii=False, indent=4)
 
 
-            
+
     def save_crop(self, save_dir, file_name=Path('im.jpg')):
         """
         Save cropped predictions to `save_dir/cls/file_name.jpg`.
