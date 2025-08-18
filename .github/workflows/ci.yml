@@ -29,7 +29,7 @@ jobs:
     # Timeout: https://stackoverflow.com/a/59076067/4521646
     timeout-minutes: 50
     steps:
-      - uses: actions/checkout@v4  # Check out the repository
+      - uses: actions/checkout@v5  # Check out the repository
       - name: Set up Python
         uses: actions/setup-python@v5  # Prepare environment with python 3.9
         with:
@@ -68,7 +68,7 @@ jobs:
     # Timeout: https://stackoverflow.com/a/59076067/4521646
     timeout-minutes: 50
     steps:
-      - uses: actions/checkout@v4  # Check out the repository
+      - uses: actions/checkout@v5  # Check out the repository
       - name: Set up Python
         uses: actions/setup-python@v5  # Prepare environment with python 3.9
         with:
@@ -104,7 +104,7 @@ jobs:
     # Timeout: https://stackoverflow.com/a/59076067/4521646
     timeout-minutes: 50
     steps:
-      - uses: actions/checkout@v4  # Check out the repository
+      - uses: actions/checkout@v5  # Check out the repository
       - name: Set up Python
         uses: actions/setup-python@v5  # Prepare environment with python 3.9
         with:
@@ -133,7 +133,7 @@ jobs:
     outputs:
       status: ${{ job.status }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
@@ -152,7 +152,7 @@ jobs:
     outputs:
       status: ${{ job.status }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
@@ -177,7 +177,7 @@ jobs:
     steps:
       - id: set_result
         run: echo "::set-output name=result::success"
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
@@ -200,7 +200,7 @@ jobs:
     steps:
       - id: set_result
         run: echo "::set-output name=result::success"
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
@@ -226,7 +226,7 @@ jobs:
     outputs:
       status: ${{ job.status }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
