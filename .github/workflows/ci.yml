@@ -31,7 +31,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4  # Check out the repository
       - name: Set up Python
-        uses: actions/setup-python@v5  # Prepare environment with python 3.9
+        uses: actions/setup-python@v6  # Prepare environment with python 3.9
         with:
           python-version: ${{ matrix.python-version }}
           cache: 'pip' # caching pip dependencies
@@ -70,7 +70,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4  # Check out the repository
       - name: Set up Python
-        uses: actions/setup-python@v5  # Prepare environment with python 3.9
+        uses: actions/setup-python@v6  # Prepare environment with python 3.9
         with:
           python-version: ${{ matrix.python-version }}
           cache: 'pip' # caching pip dependencies
@@ -106,7 +106,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4  # Check out the repository
       - name: Set up Python
-        uses: actions/setup-python@v5  # Prepare environment with python 3.9
+        uses: actions/setup-python@v6  # Prepare environment with python 3.9
         with:
           python-version: ${{ matrix.python-version }}
           cache: 'pip' # caching pip dependencies
@@ -135,7 +135,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - name: Set up Python
-        uses: actions/setup-python@v5
+        uses: actions/setup-python@v6
         with:
           python-version: '3.11'
       - run: |
@@ -154,7 +154,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - name: Set up Python
-        uses: actions/setup-python@v5
+        uses: actions/setup-python@v6
         with:
           python-version: '3.11'
       - run: |
@@ -179,7 +179,7 @@ jobs:
         run: echo "::set-output name=result::success"
       - uses: actions/checkout@v4
       - name: Set up Python
-        uses: actions/setup-python@v5
+        uses: actions/setup-python@v6
         with:
           python-version: '3.11'
       - name: Install dependencies
@@ -202,7 +202,7 @@ jobs:
         run: echo "::set-output name=result::success"
       - uses: actions/checkout@v4
       - name: Set up Python
-        uses: actions/setup-python@v5
+        uses: actions/setup-python@v6
         with:
           python-version: '3.11'
       - name: Install dependencies
@@ -228,7 +228,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - name: Set up Python
-        uses: actions/setup-python@v5
+        uses: actions/setup-python@v6
         with:
           python-version: '3.11'
       - run: |
